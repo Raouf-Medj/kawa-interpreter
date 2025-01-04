@@ -1,0 +1,172 @@
+State 0:
+## Known stack suffix:
+##
+## LR(1) items:
+program' -> . program [ # ]
+## Transitions:
+-- On MAIN shift to state 1
+-- On program shift to state 16
+## Reductions:
+
+State 1:
+## Known stack suffix:
+## MAIN
+## LR(1) items:
+program -> MAIN . BEGIN list(instruction) END EOF [ # ]
+## Transitions:
+-- On BEGIN shift to state 2
+## Reductions:
+
+State 2:
+## Known stack suffix:
+## MAIN BEGIN
+## LR(1) items:
+program -> MAIN BEGIN . list(instruction) END EOF [ # ]
+## Transitions:
+-- On PRINT shift to state 3
+-- On list(instruction) shift to state 11
+-- On instruction shift to state 14
+## Reductions:
+-- On END
+--   reduce production list(instruction) ->
+
+State 3:
+## Known stack suffix:
+## PRINT
+## LR(1) items:
+instruction -> PRINT . LPAR expression RPAR SEMI [ PRINT END ]
+## Transitions:
+-- On LPAR shift to state 4
+## Reductions:
+
+State 4:
+## Known stack suffix:
+## PRINT LPAR
+## LR(1) items:
+instruction -> PRINT LPAR . expression RPAR SEMI [ PRINT END ]
+## Transitions:
+-- On TRUE shift to state 5
+-- On INT shift to state 6
+-- On FALSE shift to state 7
+-- On expression shift to state 8
+## Reductions:
+
+State 5:
+## Known stack suffix:
+## TRUE
+## LR(1) items:
+expression -> TRUE . [ RPAR ]
+## Transitions:
+## Reductions:
+-- On RPAR
+--   reduce production expression -> TRUE
+
+State 6:
+## Known stack suffix:
+## INT
+## LR(1) items:
+expression -> INT . [ RPAR ]
+## Transitions:
+## Reductions:
+-- On RPAR
+--   reduce production expression -> INT
+
+State 7:
+## Known stack suffix:
+## FALSE
+## LR(1) items:
+expression -> FALSE . [ RPAR ]
+## Transitions:
+## Reductions:
+-- On RPAR
+--   reduce production expression -> FALSE
+
+State 8:
+## Known stack suffix:
+## PRINT LPAR expression
+## LR(1) items:
+instruction -> PRINT LPAR expression . RPAR SEMI [ PRINT END ]
+## Transitions:
+-- On RPAR shift to state 9
+## Reductions:
+
+State 9:
+## Known stack suffix:
+## PRINT LPAR expression RPAR
+## LR(1) items:
+instruction -> PRINT LPAR expression RPAR . SEMI [ PRINT END ]
+## Transitions:
+-- On SEMI shift to state 10
+## Reductions:
+
+State 10:
+## Known stack suffix:
+## PRINT LPAR expression RPAR SEMI
+## LR(1) items:
+instruction -> PRINT LPAR expression RPAR SEMI . [ PRINT END ]
+## Transitions:
+## Reductions:
+-- On PRINT END
+--   reduce production instruction -> PRINT LPAR expression RPAR SEMI
+
+State 11:
+## Known stack suffix:
+## MAIN BEGIN list(instruction)
+## LR(1) items:
+program -> MAIN BEGIN list(instruction) . END EOF [ # ]
+## Transitions:
+-- On END shift to state 12
+## Reductions:
+
+State 12:
+## Known stack suffix:
+## MAIN BEGIN list(instruction) END
+## LR(1) items:
+program -> MAIN BEGIN list(instruction) END . EOF [ # ]
+## Transitions:
+-- On EOF shift to state 13
+## Reductions:
+
+State 13:
+## Known stack suffix:
+## MAIN BEGIN list(instruction) END EOF
+## LR(1) items:
+program -> MAIN BEGIN list(instruction) END EOF . [ # ]
+## Transitions:
+## Reductions:
+-- On #
+--   reduce production program -> MAIN BEGIN list(instruction) END EOF
+
+State 14:
+## Known stack suffix:
+## instruction
+## LR(1) items:
+list(instruction) -> instruction . list(instruction) [ END ]
+## Transitions:
+-- On PRINT shift to state 3
+-- On list(instruction) shift to state 15
+-- On instruction shift to state 14
+## Reductions:
+-- On END
+--   reduce production list(instruction) ->
+
+State 15:
+## Known stack suffix:
+## instruction list(instruction)
+## LR(1) items:
+list(instruction) -> instruction list(instruction) . [ END ]
+## Transitions:
+## Reductions:
+-- On END
+--   reduce production list(instruction) -> instruction list(instruction)
+
+State 16:
+## Known stack suffix:
+## program
+## LR(1) items:
+program' -> program . [ # ]
+## Transitions:
+## Reductions:
+-- On #
+--   accept program
+
