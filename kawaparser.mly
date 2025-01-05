@@ -18,7 +18,7 @@
 %token PRINT
 %token EOF
 
-%right SET
+// %right SET
 %left OR
 %left AND
 %left EQ NEQ
@@ -27,7 +27,7 @@
 %left MUL DIV REM
 %right NEG
 %right NOT
-%left DOT LPAR NEW
+%left DOT
 
 %start program
 %type <Kawa.program> program
@@ -114,8 +114,8 @@ expr:
 | NOT expr { Unop(Not, $2) }
 | LPAR expr RPAR { $2 }
 | NEW IDENT { New($2) }
-| NEW IDENT LPAR list(expr) RPAR { NewCstr($2, $4) }
-| expr DOT IDENT LPAR list(expr) RPAR { MethCall($1, $3, $5) }
+| NEW IDENT LPAR separated_list(COMMA, expr) RPAR { NewCstr($2, $4) }
+| expr DOT IDENT LPAR separated_list(COMMA, expr) RPAR { MethCall($1, $3, $5) }
 ;
 
 mem:
