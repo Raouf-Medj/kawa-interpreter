@@ -18,17 +18,16 @@
 %token PRINT
 %token EOF
 
+%right SET
 %left OR
 %left AND
-%nonassoc EQ NEQ LT LE GT GE
+%left EQ NEQ
+%left LT LE GT GE
 %left ADD SUB
 %left MUL DIV REM
-%left DOT
 %right NEG
 %right NOT
-%left LPAR
-%left NEW
-%left TRUE FALSE
+%left DOT LPAR NEW
 
 %start program
 %type <Kawa.program> program
@@ -36,7 +35,7 @@
 %%
 
 program:
-| vrs=list(var_decl) cls=list(class_def) MAIN BEGIN main=list(instruction) END EOF
+| vrs=list(var_decl) cls=list(class_def) MAIN BEGIN main=list(instr) END EOF
     { {classes=cls; globals=vrs; main} }
 ;
 
@@ -62,7 +61,7 @@ param_decl:
 ;
 
 method_def:
-| METHOD tp=typp id=IDENT LPAR param_lst=separated_list(COMMA, param_decl) RPAR BEGIN locs=list(var_decl) sequence=list(instruction) END { {
+| METHOD tp=typp id=IDENT LPAR param_lst=separated_list(COMMA, param_decl) RPAR BEGIN locs=list(var_decl) sequence=list(instr) END { {
     method_name = id;
     code = sequence;
     params = param_lst;
@@ -83,47 +82,44 @@ typp:
 | IDENT { TClass($1) }
 ;
 
-instruction:
-| PRINT LPAR e=expression RPAR SEMI { Print(e) }
-| mem SET expression SEMI { Set($1, $3) }
-| IF LPAR e=expression RPAR BEGIN b1=list(instruction) END ELSE BEGIN b2=list(instruction) END { If(e, b1, b2) }
-| WHILE LPAR e=expression RPAR BEGIN b=list(instruction) END { While(e, b) }
-| RETURN expression SEMI { Return($2) }
-| expression SEMI { Expr($1) }
+instr:
+| PRINT LPAR e=expr RPAR SEMI { Print(e) }
+| mem SET expr SEMI { Set($1, $3) }
+| IF LPAR e=expr RPAR BEGIN b1=list(instr) END ELSE BEGIN b2=list(instr) END { If(e, b1, b2) }
+| WHILE LPAR e=expr RPAR BEGIN b=list(instr) END { While(e, b) }
+| RETURN expr SEMI { Return($2) }
+| expr SEMI { Expr($1) }
 ;
 
-expression:
-| n=INT   { Int(n) }
-| TRUE    { Bool(true) }
-| FALSE   { Bool(false) }
-| THIS    { This }
-| mem     { Get($1) }
-| expression bop expression    { Binop($2, $1, $3) }
-| SUB expression    { Unop(Opp, $2) }  %prec NEG
-| NOT expression    { Unop(Not, $2) }  
-| LPAR e=expression RPAR    { e }
-| NEW id=IDENT    { New(id) }
-| NEW IDENT LPAR list(expression) RPAR     {NewCstr($2, $4)}
-| expression DOT IDENT LPAR list(expression) RPAR     {MethCall($1, $3, $5)}
+expr:
+| INT { Int($1) }
+| TRUE { Bool(true) }
+| FALSE { Bool(false) }
+| THIS { This }
+| mem { Get($1) }
+| expr ADD expr { Binop(Add, $1, $3) }
+| expr SUB expr { Binop(Sub, $1, $3) }
+| expr MUL expr { Binop(Mul, $1, $3) }
+| expr DIV expr { Binop(Div, $1, $3) }
+| expr REM expr { Binop(Rem, $1, $3) }
+| expr LT expr { Binop(Lt, $1, $3) }
+| expr LE expr { Binop(Le, $1, $3) }
+| expr GT expr { Binop(Gt, $1, $3) }
+| expr GE expr { Binop(Ge, $1, $3) }
+| expr EQ expr { Binop(Eq, $1, $3) }
+| expr NEQ expr { Binop(Neq, $1, $3) }
+| expr AND expr { Binop(And, $1, $3) }
+| expr OR expr { Binop(Or, $1, $3) }
+| SUB expr %prec NEG { Unop(Opp, $2) }
+| NOT expr { Unop(Not, $2) }
+| LPAR expr RPAR { $2 }
+| NEW IDENT { New($2) }
+| NEW IDENT LPAR list(expr) RPAR { NewCstr($2, $4) }
+| expr DOT IDENT LPAR list(expr) RPAR { MethCall($1, $3, $5) }
 ;
 
 mem:
-| id=IDENT    { Var(id) }
-| e=expression DOT id=IDENT    { Field(e, id) }
+| IDENT { Var($1) }
+| expr DOT IDENT { Field($1, $3) }
 ;
 
-bop:
-| ADD { Add }
-| SUB { Sub }
-| MUL { Mul }
-| DIV { Div }
-| REM { Rem }
-| LT { Lt }
-| LE { Le }
-| GT { Gt }
-| GE { Ge }
-| EQ { Eq }
-| NEQ { Neq }
-| AND { And }
-| OR { Or }
-;
