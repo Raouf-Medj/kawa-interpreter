@@ -33,6 +33,7 @@ let exec_prog (p: program): unit =
         
     and eval (e: expr): value = match e with
       | Int n  -> VInt n
+      
       | _ -> failwith "case not implemented in eval"
     in
   

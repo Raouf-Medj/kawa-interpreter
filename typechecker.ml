@@ -94,6 +94,26 @@ let typecheck_prog p =
               method_.params args;
             method_.return
         | ty -> type_error ty (TClass "object"))
+    | EArrayCreate (array_type, size_expr) ->
+      (* Vérifiez que `size_expr` est un entier *)
+      check size_expr TInt tenv;
+      TArray array_type
+      
+    | EArrayGet (arr_expr, index_expr) ->
+      (* Vérifiez que `arr_expr` est un tableau et que `index_expr` est un entier *)
+      (match type_expr arr_expr tenv with
+      | TArray inner_type ->
+        check index_expr TInt tenv;
+        inner_type
+        | ty -> type_error ty (TArray TInt))  (* Erreur si ce n'est pas un tableau *)
+    | EArraySet (arr_expr, index_expr, value_expr) ->
+      (match type_expr arr_expr tenv with
+      | TArray inner_type ->
+        (* `index_expr` doit être un entier et `value_expr` doit correspondre au type du tableau *)
+        check index_expr TInt tenv;
+        check value_expr inner_type tenv;
+        TVoid
+      | ty -> type_error ty (TArray TInt))   
     | _ -> error "Unhandled expression case"
 
   and type_mem_access m tenv = match m with
@@ -108,37 +128,69 @@ let typecheck_prog p =
             (try List.assoc field cls.attributes
              with Not_found -> error ("Field not found: " ^ field))
         | ty -> type_error ty (TClass "object"))
+    | ArrayAccess (arr_expr, index_expr) ->
+      (match type_expr arr_expr tenv with
+      | TArray elem_type ->
+        (* Vérifiez que l'index est un entier *)
+        check index_expr TInt tenv;
+        elem_type
+      | ty -> type_error ty (TArray TInt))
 
   and check_instr i ret tenv = match i with
     | Print e ->
-        check e TInt tenv
+      check e TInt tenv
     | Set (Var x, e) ->
-        let tvar = Env.find x tenv in
-        check e tvar tenv
+      let tvar = Env.find x tenv in
+      check e tvar tenv
     | Set (Field (obj, field), e) ->
-        (match type_expr obj tenv with
-        | TClass cname ->
-            let cls =
-              try List.find (fun c -> c.class_name = cname) p.classes
-              with Not_found -> error ("Class not found: " ^ cname)
-            in
-            let tfield =
-              try List.assoc field cls.attributes
-              with Not_found -> error ("Field not found: " ^ field)
-            in
-            check e tfield tenv
-        | ty -> type_error ty (TClass "object"))
+      (match type_expr obj tenv with
+    | TClass cname ->
+      let cls =
+        try List.find (fun c -> c.class_name = cname) p.classes
+        with Not_found -> error ("Class not found: " ^ cname)
+      in
+      let tfield =
+        try List.assoc field cls.attributes
+        with Not_found -> error ("Field not found: " ^ field)
+      in
+      check e tfield tenv
+      | ty -> type_error ty (TClass "object"))
+    | Set (ArrayAccess (arr_expr, index_expr), value_expr) ->
+      (* Vérifiez que arr_expr est un tableau *)
+      (match type_expr arr_expr tenv with
+      | TArray elem_type ->
+        check index_expr TInt tenv;  (* L'index doit être un entier *)
+        check value_expr elem_type tenv  (* La valeur doit correspondre au type du tableau *)
+      | ty -> type_error ty (TArray TInt))
+    | Set (Var x, EArrayCreate (arr_type, size_expr)) ->
+      let tvar = Env.find x tenv in
+      check size_expr TInt tenv;  (* La taille doit être un entier *)
+      if tvar <> TArray arr_type then
+        type_error tvar (TArray arr_type)
+    (*| Set (Field (arr_expr, index_expr), value_expr) ->
+      let index_expr_ast = Var index_expr in
+      (* Vérifiez que arr_expr est un tableau imbriqué dans un champ *)
+      (match type_expr arr_expr tenv with
+      | TArray elem_type ->
+            (* ** ** * * * *** * **)
+        check index_expr_ast TInt tenv;  (* L'index doit être un entier *)
+        check value_expr elem_type tenv;  (* La valeur doit correspondre au type des éléments du tableau *)
+      | ty -> type_error ty (TArray TInt))*)
     | If (cond, then_seq, else_seq) ->
-        check cond TBool tenv;
-        check_seq then_seq ret tenv;
-        check_seq else_seq ret tenv
+      check cond TBool tenv;
+      check_seq then_seq ret tenv;
+      check_seq else_seq ret tenv
     | While (cond, body) ->
-        check cond TBool tenv;
-        check_seq body ret tenv
+      check cond TBool tenv;
+      check_seq body ret tenv
     | Return e ->
-        check e ret tenv
+      check e ret tenv
     | Expr e ->
-        ignore (type_expr e tenv)
+      ignore (type_expr e tenv)
+      | _ -> error "Unhandled expression case"
+  
+
+  
 
   and check_seq s ret tenv =
     List.iter (fun i -> check_instr i ret tenv) s

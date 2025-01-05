@@ -116,6 +116,9 @@ expr:
 | NEW IDENT { New($2) }
 | NEW IDENT LPAR separated_list(COMMA, expr) RPAR { NewCstr($2, $4) }
 | expr DOT IDENT LPAR separated_list(COMMA, expr) RPAR { MethCall($1, $3, $5) }
+| "new" typ "[" expr "]"  { EArrayCreate($2, $4) }
+| expr "[" expr "]"       { EArrayGet($1, $3) }
+| expr "[" expr "]" "=" expr { EArraySet($1, $3, $6) }
 ;
 
 mem:

@@ -70,6 +70,8 @@ rule token = parse
   | "/"  { DIV }
   | "-"  { SUB }
   | "*"  { MUL }
+  | "["           { LBRACKET }
+  | "]"           { RBRACKET }
   | _    { raise (Error ("unknown character : " ^ lexeme lexbuf)) }
   | eof  { EOF }
 
