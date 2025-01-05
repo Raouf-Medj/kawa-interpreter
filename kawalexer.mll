@@ -25,6 +25,7 @@
         "int",        TINT;
         "bool",       TBOOL;
         "void",       TVOID;
+        "extends",    EXTENDS;
       ] ;
     fun s ->
       try  Hashtbl.find h s
@@ -48,8 +49,9 @@ rule token = parse
   | ident as id  { keyword_or_ident id }
 
   | ";"  { SEMI }
-  | ","  { VIRG }
-  | "."  { PT }
+  | ","  { COMMA }
+  | "."  { DOT }
+  | "="  { SET }
   | "("  { LPAR }
   | ")"  { RPAR }
   | "{"  { BEGIN }
@@ -57,8 +59,8 @@ rule token = parse
   | "||" { OR }
   | "&&" { AND }
   | "!"  { NOT }
-  | "="  { EQ }
-  | "==" { EQS }
+  | "==" { EQ }
+  | "%"  { REM }
   | "!=" { NEQ }
   | "<"  { LT }
   | "<=" { LE }

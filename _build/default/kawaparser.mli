@@ -3,7 +3,6 @@
 
 type token = 
   | WHILE
-  | VIRG
   | VAR
   | TVOID
   | TRUE
@@ -11,10 +10,11 @@ type token =
   | THIS
   | TBOOL
   | SUB
+  | SET
   | SEMI
   | RPAR
   | RETURN
-  | PT
+  | REM
   | PRINT
   | OR
   | NOT
@@ -32,12 +32,14 @@ type token =
   | GT
   | GE
   | FALSE
-  | EQS
+  | EXTENDS
   | EQ
   | EOF
   | END
   | ELSE
+  | DOT
   | DIV
+  | COMMA
   | CLASS
   | BEGIN
   | ATTR
