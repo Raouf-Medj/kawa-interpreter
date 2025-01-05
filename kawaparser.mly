@@ -18,6 +18,18 @@
 %token PRINT
 %token EOF
 
+%left OR
+%left AND
+%nonassoc EQ NEQ LT LE GT GE
+%left ADD SUB
+%left MUL DIV REM
+%left DOT
+%right NEG
+%right NOT
+%left LPAR
+%left NEW
+%left TRUE FALSE
+
 %start program
 %type <Kawa.program> program
 
@@ -87,7 +99,8 @@ expression:
 | THIS    { This }
 | mem     { Get($1) }
 | expression bop expression    { Binop($2, $1, $3) }
-| uop expression    { Unop($1, $2) }
+| SUB expression    { Unop(Opp, $2) }  %prec NEG
+| NOT expression    { Unop(Not, $2) }  
 | LPAR e=expression RPAR    { e }
 | NEW id=IDENT    { New(id) }
 | NEW IDENT LPAR list(expression) RPAR     {NewCstr($2, $4)}
@@ -97,11 +110,6 @@ expression:
 mem:
 | id=IDENT    { Var(id) }
 | e=expression DOT id=IDENT    { Field(e, id) }
-;
-
-uop:
-| SUB { Opp }
-| NOT { Not }
 ;
 
 bop:
