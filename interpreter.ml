@@ -28,31 +28,33 @@ let rec exec_prog (p: program): unit =
         VObj { cls = cname; fields }
     | None -> error ("Class not found: " ^ cname)
   in
-  let rec eval_expr e env =
+  let rec eval_expr e env this =
     match e with
     | Int n -> VInt n
     | Bool b -> VBool b
     | Unop (Opp, e1) ->
-        (match eval_expr e1 env with
+        (match eval_expr e1 env this with
          | VInt n -> VInt (-n)
          | _ -> error "Unary '-' applied to non-integer")
     | Unop (Not, e1) ->
-        (match eval_expr e1 env with
+        (match eval_expr e1 env this with
          | VBool b -> VBool (not b)
          | _ -> error "Unary 'not' applied to non-boolean")
     | Binop (op, e1, e2) ->
-        let v1 = eval_expr e1 env in
-        let v2 = eval_expr e2 env in
+        let v1 = eval_expr e1 env this in
+        let v2 = eval_expr e2 env this in
         eval_binop op v1 v2
     | Get (Var x) ->
         (try Hashtbl.find env x
          with Not_found -> error ("Variable not found: " ^ x))
     | Get (Field (e, field)) ->
-        (match eval_expr e env with
+        (match eval_expr e env this with
          | VObj o -> (try Hashtbl.find o.fields field
                       with Not_found -> error ("Field not found: " ^ field))
          | _ -> error "Field access on non-object")
-    | This -> error "Unbound 'this' in the current context"
+    | This -> (match this with
+               | Some obj -> obj
+               | None -> error "Unbound 'this' in the current context")
     | New cname -> create_object cname
     | NewCstr (cname, args) ->
         let obj = create_object cname in
@@ -62,13 +64,13 @@ let rec exec_prog (p: program): unit =
           | Some cstr -> cstr
           | None -> error ("Constructor not found for class: " ^ cname)
         in
-        let arg_values = List.map (fun a -> eval_expr a env) args in
+        let arg_values = List.map (fun a -> eval_expr a env this) args in
         let local_env = add_params_to_env constructor.params arg_values env in
-        ignore (exec_seq constructor.code local_env (Some obj));
+        ignore (exec_seq constructor.code local_env (Some (obj)));
         obj
     | MethCall (obj_expr, mname, args) ->
-        (match eval_expr obj_expr env with
-         | VObj obj -> call_method obj mname args env
+        (match eval_expr obj_expr env this with
+         | VObj obj -> call_method obj mname args env this
          | _ -> error "Method call on non-object")
 
   and eval_binop op v1 v2 =
@@ -88,17 +90,19 @@ let rec exec_prog (p: program): unit =
     | Or, VBool b1, VBool b2 -> VBool (b1 || b2)
     | _ -> error "Invalid binary operation or operand types"
 
-  and call_method obj mname args env =
+  and call_method obj mname args env this =
     let cls = find_class obj.cls p.classes in
     let method_ =
       match List.find_opt (fun m -> m.method_name = mname) cls.methods with
       | Some m -> m
       | None -> error ("Method not found: " ^ mname)
     in
-    let arg_values = List.map (fun a -> eval_expr a env) args in
+    let arg_values = List.map (fun a -> eval_expr a env this) args in
     let local_env = add_params_to_env method_.params arg_values env in
-    ignore (exec_seq method_.code local_env (Some (VObj obj)));
-    Null
+    try
+      exec_seq method_.code local_env (Some (VObj obj));
+      Null
+    with Return v -> v
 
   and exec_seq seq env this =
     try List.iter (fun instr -> exec_instr instr env this) seq
@@ -107,32 +111,32 @@ let rec exec_prog (p: program): unit =
   and exec_instr i env this =
     match i with
     | Print e ->
-        (match eval_expr e env with
+        (match eval_expr e env this with
          | VInt n -> Printf.printf "%d\n" n
          | _ -> error "Print expects an integer")
     | Set (Var x, e) ->
-        let v = eval_expr e env in
+        let v = eval_expr e env this in
         Hashtbl.replace env x v
     | Set (Field (obj_expr, field), e) ->
-        let v = eval_expr e env in
-        (match eval_expr obj_expr env with
+        let v = eval_expr e env this in
+        (match eval_expr obj_expr env this with
          | VObj obj -> Hashtbl.replace obj.fields field v
          | _ -> error "Field assignment on non-object")
     | If (cond, then_seq, else_seq) ->
-        (match eval_expr cond env with
+        (match eval_expr cond env this with
          | VBool true -> exec_seq then_seq env this
          | VBool false -> exec_seq else_seq env this
          | _ -> error "If condition must be a boolean")
     | While (cond, body) ->
         let rec loop () =
-          match eval_expr cond env with
+          match eval_expr cond env this with
           | VBool true -> exec_seq body env this; loop ()
           | VBool false -> ()
           | _ -> error "While condition must be a boolean"
         in
         loop ()
-    | Return e -> raise (Return (eval_expr e env))
-    | Expr e -> ignore (eval_expr e env)
+    | Return e -> raise (Return (eval_expr e env this))
+    | Expr e -> ignore (eval_expr e env this)
 
   and find_class cname classes =
     match List.find_opt (fun c -> c.class_name = cname) classes with
