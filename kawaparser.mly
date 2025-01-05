@@ -18,7 +18,6 @@
 %token PRINT
 %token EOF
 
-
 %start program
 %type <Kawa.program> program
 
