@@ -1,4 +1,5 @@
-./_build/
-./kawaparser.automaton
-./kawaparser.conflicts
-./.vscode/
+/_build/
+/kawaparser.automaton
+/kawaparser.conflicts
+/.vscode/
+/kawai.exe
