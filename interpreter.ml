@@ -106,14 +106,16 @@ let rec exec_prog (p: program): unit =
 
   and exec_seq seq env this =
     try List.iter (fun instr -> exec_instr instr env this) seq
-    with Return v -> ()
+    with Return v -> raise (Return v)
 
   and exec_instr i env this =
     match i with
     | Print e ->
         (match eval_expr e env this with
          | VInt n -> Printf.printf "%d\n" n
-         | _ -> error "Print expects an integer")
+         | VBool b -> Printf.printf "%b\n" b
+         | VObj _ -> Printf.printf "<object>\n"
+         | Null -> Printf.printf "null\n")
     | Set (Var x, e) ->
         let v = eval_expr e env this in
         Hashtbl.replace env x v
