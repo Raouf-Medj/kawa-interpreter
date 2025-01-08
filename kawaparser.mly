@@ -8,7 +8,7 @@
 %token <int> INT
 %token <string> IDENT
 %token MAIN
-%token LPAR RPAR BEGIN END SEMI COMMA DOT SET
+%token LPAR RPAR BEGIN END SEMI COMMA DOT SET RBRACKET(* [ *) LBRACKET(* ] *)
 %token VAR ATTR METHOD CLASS NEW THIS EXTENDS
 %token TINT TBOOL TVOID
 %token TRUE FALSE
@@ -17,6 +17,7 @@
 %token EQ NEQ LT LE GT GE
 %token PRINT
 %token EOF
+
 
 // %right SET
 %left OR
@@ -27,7 +28,8 @@
 %left MUL DIV REM
 %right NEG
 %right NOT
-%left DOT
+%left DOT LBRACKET
+%right RBRACKET
 
 %start program
 %type <Kawa.program> program
@@ -89,6 +91,7 @@ instr:
 | WHILE LPAR e=expr RPAR BEGIN b=list(instr) END { While(e, b) }
 | RETURN expr SEMI { Return($2) }
 | expr SEMI { Expr($1) }
+| expr LBRACKET expr RBRACKET SET expr SEMI { ArraySet(ArrayAccess($1, $3), $6) }
 ;
 
 expr:
@@ -116,13 +119,14 @@ expr:
 | NEW IDENT { New($2) }
 | NEW IDENT LPAR separated_list(COMMA, expr) RPAR { NewCstr($2, $4) }
 | expr DOT IDENT LPAR separated_list(COMMA, expr) RPAR { MethCall($1, $3, $5) }
-| "new" typ "[" expr "]"  { EArrayCreate($2, $4) }
-| expr "[" expr "]"       { EArrayGet($1, $3) }
-| expr "[" expr "]" "=" expr { EArraySet($1, $3, $6) }
 ;
 
 mem:
 | IDENT { Var($1) }
 | expr DOT IDENT { Field($1, $3) }
+| NEW typp LBRACKET expr RBRACKET { ArrayCreate($2, $4) }
+| expr LBRACKET expr RBRACKET { ArrayAccess($1, $3) }
+
+
 ;
 
