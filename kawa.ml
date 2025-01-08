@@ -4,20 +4,22 @@
 
 (* Types déclarés pour les attributs, pour les variables, et pour les 
    paramètres et résultats des méthodes. *)
-   type typ =
-   | TVoid
-   | TInt
-   | TBool
-   | TClass of string
-   | TArray of typ 
+type typ =
+  | TVoid
+  | TInt
+  | TBool
+  | TClass of string
+  | TArray of typ 
 
-   let rec typ_to_string = function
-   | TVoid    -> "void"
-   | TInt     -> "int"
-   | TBool    -> "bool"
-   | TClass c -> c
-   | TArray a -> Printf.sprintf "%s[]" (typ_to_string a)
- 
+
+let rec typ_to_string = function
+  | TVoid    -> "void"
+  | TInt     -> "int"
+  | TBool    -> "bool"
+  | TClass c -> c
+  | TArray a -> Printf.sprintf "%s[]" (typ_to_string a)
+
+
 type unop  = Opp | Not
 type binop = Add | Sub | Mul | Div | Rem
            | Lt  | Le  | Gt | Ge | Eq  | Neq
@@ -41,13 +43,14 @@ type expr =
   | MethCall of expr * string * expr list
   | EArrayCreate of typ * expr  (* Création d'un tableau : type et taille *)
   | EArrayGet of expr * expr   (* Accès à un élément : tableau et index *)
-  | EArraySet of expr * expr * expr  (* Modification : tableau, index, valeur *)
 
 (* Accès mémoire : variable ou attribut d'un objet *)
 and mem_access =
   | Var   of string
   | Field of expr (* objet *) * string (* nom d'un attribut *)
   | ArrayAccess of expr (* tableau *) * expr (* indice *)
+  | ArrayCreate of typ * expr  (* Création d'un tableau : type et taille *)
+
 
 (* Instructions *)
 type instr =
@@ -64,7 +67,6 @@ type instr =
   | Expr   of expr
   | ArraySet of mem_access * expr (* valeur *)
 
-  
 and seq = instr list
 
 (* Définition de méthode 
