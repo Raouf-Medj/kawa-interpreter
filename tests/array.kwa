@@ -1,0 +1,7 @@
+var int[] arr;
+
+main {
+  arr = new int[2];  // Création d'un tableau d'entiers de taille 5
+  arr[1] = 5;
+  print(arr[1]);
+}
