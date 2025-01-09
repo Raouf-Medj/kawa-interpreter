@@ -3,7 +3,10 @@
   open Lexing
   open Kawa
 
+  let rec tarray_maker d t= if(d=1) then TArray t else TArray (tarray_maker (d-1) t)  
+
 %}
+
 
 %token <int> INT
 %token <string> IDENT
@@ -28,8 +31,8 @@
 %left MUL DIV REM
 %right NEG
 %right NOT
-%left DOT LBRACKET
-%right RBRACKET
+%left DOT 
+
 
 %start program
 %type <Kawa.program> program
@@ -51,19 +54,19 @@ class_def:
 ;
 
 var_decl:
-| VAR typp IDENT SEMI { ($3, $2) }
+| VAR typpc IDENT SEMI { ($3, $2) }
 ;
 
 attr_decl:
-| ATTR typp IDENT SEMI { ($3, $2) }
+| ATTR typpc IDENT SEMI { ($3, $2) }
 ;
 
 param_decl:
-| typp IDENT { ($2, $1) }
+| typpc IDENT { ($2, $1) }
 ;
 
 method_def:
-| METHOD tp=typp id=IDENT LPAR param_lst=separated_list(COMMA, param_decl) RPAR BEGIN locs=list(var_decl) sequence=list(instr) END { {
+| METHOD tp=typpc id=IDENT LPAR param_lst=separated_list(COMMA, param_decl) RPAR BEGIN locs=list(var_decl) sequence=list(instr) END { {
     method_name = id;
     code = sequence;
     params = param_lst;
@@ -84,6 +87,14 @@ typp:
 | IDENT { TClass($1) }
 ;
 
+typpc: 
+| t= typp {t}
+| t= typp d=nonempty_list(bracket_pair) { tarray_maker (List.length d) t}
+;
+
+%inline bracket_pair :
+| LBRACKET RBRACKET { 0 }
+
 instr:
 | PRINT LPAR e=expr RPAR SEMI { Print(e) }
 | mem SET expr SEMI { Set($1, $3) }
@@ -91,7 +102,6 @@ instr:
 | WHILE LPAR e=expr RPAR BEGIN b=list(instr) END { While(e, b) }
 | RETURN expr SEMI { Return($2) }
 | expr SEMI { Expr($1) }
-| expr LBRACKET expr RBRACKET SET expr SEMI { ArraySet(ArrayAccess($1, $3), $6) }
 ;
 
 expr:
@@ -119,14 +129,16 @@ expr:
 | NEW IDENT { New($2) }
 | NEW IDENT LPAR separated_list(COMMA, expr) RPAR { NewCstr($2, $4) }
 | expr DOT IDENT LPAR separated_list(COMMA, expr) RPAR { MethCall($1, $3, $5) }
+| NEW typp nonempty_list(list_array) { EArrayCreate($2, $3) }
+
 ;
+%inline list_array : 
+| LBRACKET expr RBRACKET {$2}
 
 mem:
 | IDENT { Var($1) }
 | expr DOT IDENT { Field($1, $3) }
-| NEW typp LBRACKET expr RBRACKET { ArrayCreate($2, $4) }
-| expr LBRACKET expr RBRACKET { ArrayAccess($1, $3) }
-
+| IDENT nonempty_list(list_array) {ArrayAccess($1, $2)}
 
 ;
 
