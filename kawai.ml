@@ -15,10 +15,13 @@ let () =
   try
     let prog = Kawaparser.program Kawalexer.token lb in
     close_in c;
-    (* Typechecker.typecheck_prog prog; *)
+    Typechecker.typecheck_prog prog;
     Interpreter.exec_prog prog;
     exit 0
   with
+  | Typechecker.Error s ->
+     eprintf "type error: %s@." s;
+     exit 1
   | Kawalexer.Error s ->
      report (lexeme_start_p lb, lexeme_end_p lb);
      eprintf "lexical error: %s@." s;

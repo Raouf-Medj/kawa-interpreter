@@ -87,7 +87,7 @@ let typecheck_prog p =
               method_.params args;
             method_.return
         | ty -> type_error ty (TClass "object"))
-    | EArrayCreate (array_type, size_expr) ->
+    (* | EArrayCreate (array_type, size_expr) ->
         check size_expr TInt tenv;
         TArray array_type
         | EArrayGet (arr_expr, index_expr) | Get(ArrayAccess(arr_expr, index_expr))->
@@ -102,10 +102,13 @@ let typecheck_prog p =
             check index_expr TInt tenv;
             check value_expr elem_type tenv;
             TVoid
-        | ty -> type_error ty (TArray TInt))
+        | ty -> type_error ty (TArray TInt)) *)
 
   and check_instr i ret tenv = match i with
-    | Print e -> check e TInt tenv
+    | Print e -> (try check e TInt tenv with 
+      exn ->
+        try check e TBool tenv
+        with exn -> check e TVoid tenv)
     | Set (Var x, e) ->
         let tvar = Env.find x tenv in
         check e tvar tenv
@@ -119,13 +122,13 @@ let typecheck_prog p =
             in
             check e tfield tenv
         | ty -> type_error ty (TClass "object"))
-    | Set (ArrayAccess (arr_expr, index_expr), value_expr) |ArraySet(ArrayAccess (arr_expr, index_expr), value_expr)->
+    (* | Set (ArrayAccess (arr_expr, index_expr), value_expr) |ArraySet(ArrayAccess (arr_expr, index_expr), value_expr)->
         (match type_expr arr_expr tenv with
         | TArray elem_type ->
             check index_expr TInt tenv;
             check value_expr elem_type tenv
         | ty -> type_error ty (TArray TInt))
-    |ArraySet(e,_)-> type_error (type_expr (Get e) tenv) (TArray TInt)
+    |ArraySet(e,_)-> type_error (type_expr (Get e) tenv) (TArray TInt) *)
     | If (cond, then_seq, else_seq) ->
         check cond TBool tenv;
         check_seq then_seq ret tenv;
