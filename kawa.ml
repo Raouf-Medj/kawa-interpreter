@@ -41,15 +41,13 @@ type expr =
   | NewCstr  of string * expr list
   (* Appel de méthode *)
   | MethCall of expr * string * expr list
-  | EArrayCreate of typ * expr  (* Création d'un tableau : type et taille *)
-  | EArrayGet of expr * expr   (* Accès à un élément : tableau et index *)
+  | EArrayCreate of typ * expr list  (* Création d'un tableau : type et taille *)
 
 (* Accès mémoire : variable ou attribut d'un objet *)
 and mem_access =
   | Var   of string
   | Field of expr (* objet *) * string (* nom d'un attribut *)
-  | ArrayAccess of expr (* tableau *) * expr (* indice *)
-  | ArrayCreate of typ * expr  (* Création d'un tableau : type et taille *)
+  | ArrayAccess of string (* nom tableau *) * expr list (* indice *)
 
 
 (* Instructions *)
@@ -65,7 +63,6 @@ type instr =
   | Return of expr
   (* Expression utilisée comme instruction *)
   | Expr   of expr
-  | ArraySet of mem_access * expr (* valeur *)
 
 and seq = instr list
 
