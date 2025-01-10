@@ -1,0 +1,16 @@
+var factoriel fct; 
+
+class factoriel {
+    method int fact (int n) {
+        if (n == 0 || n == 1) {return 1;}
+        else {
+            n = n - 1;
+            return (n+1) * this.fact(n);
+        }
+    }
+}
+
+main {
+    fct = new factoriel;
+    print(fct.fact(5));
+}
