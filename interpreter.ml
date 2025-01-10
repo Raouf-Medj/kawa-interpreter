@@ -80,9 +80,14 @@ let rec exec_prog (p: program): unit =
                       with Not_found -> error ("Field not found: " ^ field))
          | _ -> error "Field access on non-object")
       
+    (*| This -> (match this with
+               | Some obj -> obj
+               | None -> error "Unbound 'this' in the current context")
+    *)
     | This -> (match this with
                | Some obj -> obj
                | None -> error "Unbound 'this' in the current context")
+
     | New cname -> create_object cname
     | NewCstr (cname, args) ->
         let obj = create_object cname in
@@ -102,69 +107,66 @@ let rec exec_prog (p: program): unit =
          | _ -> error "Method call on non-object")
     
     | EArrayCreate (typ, dims) -> 
-    (match dims with
-     | [] -> error "Array dimensions cannot be empty"
-     | _ ->
-         (* Évalue les dimensions *)
-         let dim_sizes = List.map (fun dim_expr ->
-           match eval_expr dim_expr env this with
-           | VInt size when size > 0 -> size
-           | VInt size when size <= 0 -> error "Array size must be positive"
-           | _ -> error "Array dimensions must be integers"
-         ) dims in
-         
-         (* Fonction pour obtenir la valeur par défaut pour le type *)
-         let default_value_for_type typ =
-           match typ with
-           | TInt -> VInt 0
-           | TBool -> VBool false
-           | TVoid -> Null
-           | TClass _ -> Null
-           | TArray inner_type -> 
-               (* Si c'est un tableau, on retourne une valeur par défaut du type de tableau intérieur *)
-               VArray (Array.make 0 Null)  (* Tableau vide pour des tableaux imbriqués *)
-           | _ -> error "Unsupported array element type"
-         in
-         
-         (* Fonction récursive pour créer un tableau multidimensionnel *)
-         let rec create_nested_array sizes =
-           match sizes with
-           | [last_dim] -> VArray (Array.make last_dim (default_value_for_type typ))  (* Dernier niveau du tableau *)
-           | dim :: rest ->
-               (* Crée une dimension contenant des sous-tableaux *)
-               let inner_array = create_nested_array rest in
-               VArray (Array.init dim (fun _ -> inner_array))
-           | [] -> error "Unexpected empty dimension list during array creation"
-         in
+        (match dims with
+        | [] -> error "Array dimensions cannot be empty"
+        | _ ->
+            (* Évalue les dimensions *)
+            let dim_sizes = List.map (fun dim_expr ->
+              match eval_expr dim_expr env this with
+              | VInt size when size > 0 -> size
+              | VInt size when size <= 0 -> error "Array size must be positive"
+              | _ -> error "Array dimensions must be integers"
+            ) dims in
+            
+            (* Fonction pour obtenir la valeur par défaut pour le type *)
+            let default_value_for_type typ =
+              match typ with
+              | TInt -> VInt 0
+              | TBool -> VBool false
+              | TVoid -> Null
+              | TClass _ -> Null
+              | TArray inner_type -> 
+                  (* Si c'est un tableau, on retourne une valeur par défaut du type de tableau intérieur *)
+                  VArray (Array.make 0 Null)  (* Tableau vide pour des tableaux imbriqués *)
+              (*| _ -> error "Unsupported array element type"*)
+            in
+            
+            (* Fonction récursive pour créer un tableau multidimensionnel *)
+            let rec create_nested_array sizes =
+              match sizes with
+              | [last_dim] -> VArray (Array.make last_dim (default_value_for_type typ))  (* Dernier niveau du tableau *)
+              | dim :: rest ->
+                  (* Crée une dimension contenant des sous-tableaux *)
+                  let inner_array = create_nested_array rest in
+                  VArray (Array.init dim (fun _ -> inner_array))
+              | [] -> error "Unexpected empty dimension list during array creation"
+            in
 
-         (* Crée le tableau avec les tailles données *)
-         let array_value = create_nested_array dim_sizes in
+            (* Crée le tableau avec les tailles données *)
+            let array_value = create_nested_array dim_sizes in
 
-         (* Retourner la valeur du tableau créé *)
-         array_value)
-
-      
-      
-     
+            (* Retourner la valeur du tableau créé *)
+            array_value)
+ 
     | Get (ArrayAccess (array_name, indices)) ->
-    (try
-       let array_val = Hashtbl.find env array_name in
-       let indices_values = List.map (fun idx_expr ->
-         match eval_expr idx_expr env this with
-         | VInt idx when idx >= 0 -> idx
-         | VInt idx when idx < 0 -> error "Array index must be non-negative"
-         | _ -> error "Array indices must be integers"
-       ) indices in
-       let rec access_nested_array arr dims =
-         match arr, dims with
-         | VArray nested_array, idx :: rest when idx < Array.length nested_array ->
-             if rest = [] then nested_array.(idx)
-             else access_nested_array nested_array.(idx) rest
-         | VArray _, idx :: _ -> error "Array index out of bounds"
-         | _, _ -> error "Invalid array access"
-       in
-       access_nested_array array_val indices_values
-     with Not_found -> error ("Array not found: " ^ array_name))
+        (try
+          let array_val = Hashtbl.find env array_name in
+          let indices_values = List.map (fun idx_expr ->
+            match eval_expr idx_expr env this with
+            | VInt idx when idx >= 0 -> idx
+            | VInt idx when idx < 0 -> error "Array index must be non-negative"
+            | _ -> error "Array indices must be integers"
+          ) indices in
+          let rec access_nested_array arr dims =
+            match arr, dims with
+            | VArray nested_array, idx :: rest when idx < Array.length nested_array ->
+                if rest = [] then nested_array.(idx)
+                else access_nested_array nested_array.(idx) rest
+            | VArray _, idx :: _ -> error "Array index out of bounds"
+            | _, _ -> error "Invalid array access"
+          in
+          access_nested_array array_val indices_values
+        with Not_found -> error ("Array not found: " ^ array_name))
 
   
     
@@ -255,7 +257,7 @@ let rec exec_prog (p: program): unit =
               let v = eval_expr e env this in
               Hashtbl.replace obj.fields field_name v
           | _ -> error "Field assignment on non-object")
-          | ArrayAccess (array_name, indices) ->
+      | ArrayAccess (array_name, indices) ->
             (* Evaluate all index expressions *)
             let index_vals = List.map (fun index_expr -> 
                 match eval_expr index_expr env this with
@@ -286,15 +288,6 @@ let rec exec_prog (p: program): unit =
                 set_value_in_array arr index_vals new_value
             | _ -> error "Array not found or invalid structure for assignment")
         
-
-
-    
-    
-
-    
-    
-    
-  
 
   and find_class cname classes =
     match List.find_opt (fun c -> c.class_name = cname) classes with
