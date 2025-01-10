@@ -66,6 +66,13 @@ let typecheck_prog p =
             (try List.assoc field cls.attributes
             with Not_found -> error ("Field not found: " ^ field))
         | ty -> type_error ty (TClass "object"))*)
+           
+    (*| Get(ArrayAccess(arr_expr, index_expr))->TInt*)
+        (*(match type_expr arr_expr tenv with
+            | TArray elem_type ->
+                check index_expr TInt tenv;
+                elem_type
+            | ty -> type_error ty (TArray TInt))*)
     | This -> 
         (try
           Env.find "this" tenv
@@ -108,15 +115,12 @@ let typecheck_prog p =
     | EArrayCreate(t, n) ->
       let typed_n = List.map (fun x -> type_expr x tenv) n in
       List.iter (fun x -> check_eq_type TInt x) typed_n;
-      TArray t
+      let rec retu n = 
+        if n == 1 then t
+        else TArray (retu (n-1)) 
+      in  TArray (retu (List.length n))
 
-       
-    (*| Get(ArrayAccess(arr_expr, index_expr))->TInt*)
-        (*(match type_expr arr_expr tenv with
-            | TArray elem_type ->
-                check index_expr TInt tenv;
-                elem_type
-            | ty -> type_error ty (TArray TInt))*)
+
     
   (***************)
   and type_mem_access m tenv : typ =
