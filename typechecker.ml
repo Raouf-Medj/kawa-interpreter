@@ -212,7 +212,8 @@ let typecheck_prog p =
 
   and check_class cls tenv =
     let class_env = add_env cls.attributes tenv in
-    List.iter (fun method_ -> check_method cls method_ class_env) cls.methods
+    let class_env_this = Env.add "this" (TClass(cls.class_name)) class_env in
+    List.iter (fun method_ -> check_method cls method_ class_env_this) cls.methods
 
   in
   List.iter (fun cls -> check_class cls tenv) p.classes;
