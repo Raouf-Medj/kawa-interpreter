@@ -1,11 +1,11 @@
 
 open Kawa
 
-exception TypeError of string
+exception Error of string
 exception ArrayError of string
 exception VarNotFound of string
 
-let error s = raise (TypeError s)
+let error s = raise (Error s)
 let type_error ty_actual ty_expected =
   error (Printf.sprintf "expected %s, got %s"
            (typ_to_string ty_expected) (typ_to_string ty_actual))
@@ -171,7 +171,7 @@ let typecheck_prog p =
         try
           let arr_type = Env.find name tenv in
           try reduce_dim arr_type indices
-          with TypeError msg -> error msg
+          with Error msg -> error msg
         with Not_found ->
           error ("Undeclared variable: "))
     
