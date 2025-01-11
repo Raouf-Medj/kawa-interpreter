@@ -37,7 +37,21 @@
 
 program:
 | vrs=list(var_decl) cls=list(class_def) MAIN BEGIN main=list(instr) END EOF
-    { {classes=cls; globals=vrs; main} }
+    { {
+      classes=cls;
+      globals=
+        (let glb = List.fold_left (fun acc l -> acc @ l) [] vrs in
+        let has_duplicates lst =
+          let tbl = Hashtbl.create (List.length lst) in
+          List.fold_left (fun found x ->
+            if found then true
+            else if Hashtbl.mem tbl x then true
+            else (Hashtbl.add tbl x (); false)
+          ) false lst in
+        if has_duplicates (List.map fst glb) then failwith "Duplicate variable declaration"
+        else glb); 
+      main
+    } }
 ;
 
 class_def:
@@ -51,7 +65,7 @@ class_def:
 ;
 
 var_decl:
-| VAR typp IDENT SEMI { ($3, $2) }
+| VAR typp separated_nonempty_list(COMMA, IDENT) SEMI { List.map (fun ident -> (ident, $2)) $3 }
 ;
 
 attr_decl:
@@ -68,7 +82,17 @@ method_def:
     method_name = id;
     code = sequence;
     params = param_lst;
-    locals = locs;
+    locals = 
+      (let glb = List.fold_left (fun acc l -> acc @ l) [] locs in
+      let has_duplicates lst =
+        let tbl = Hashtbl.create (List.length lst) in
+        List.fold_left (fun found x ->
+          if found then true
+          else if Hashtbl.mem tbl x then true
+          else (Hashtbl.add tbl x (); false)
+        ) false lst in
+      if has_duplicates (List.map fst glb) then failwith "Duplicate variable declaration"
+      else glb);
     return = tp;
   } }
 ;

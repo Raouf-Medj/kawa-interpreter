@@ -1,0 +1,24 @@
+var point p, p2, p3;
+
+class point {
+  attribute int x;
+  attribute int y;
+
+  method void constructor(int a, int b) {
+    this.x = a;
+    this.y = b;
+  }
+}
+
+main {
+  p = new point(2, 1);
+  p2 = new point(2, 1);
+  p3 = new point(2, 1);
+  p.x = 3 + p.x;
+  p2.x = 3 + p2.x;
+  p3.x = 3 + p3.x;
+  print(48 + p.x);
+  print(48 + p2.x);
+  print(48 + p3.x);
+  // affiche 53
+}
