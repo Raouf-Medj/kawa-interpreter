@@ -1,102 +1,84 @@
-(**
-   Kawa : un petit langage à objets inspiré de Java
- *)
+{
 
-(* Types déclarés pour les attributs, pour les variables, et pour les 
-   paramètres et résultats des méthodes. *)
-   type typ =
-   | TVoid
-   | TInt
-   | TBool
-   | TClass of string
- 
- let typ_to_string = function
-   | TVoid    -> "void"
-   | TInt     -> "int"
-   | TBool    -> "bool"
-   | TClass c -> c
- 
- type unop  = Opp | Not
- type binop = Add | Sub | Mul | Div | Rem
-            | Lt  | Le  | Gt | Ge | Eq  | Neq
-            | And | Or 
- 
- (* Expressions *)
- type expr =
-   (* Base arithmétique *)
-   | Int    of int
-   | Bool   of bool
-   | Unop   of unop * expr
-   | Binop  of binop * expr * expr
-   (* Accès à une variable ou un attribut *)
-   | Get      of mem_access
-   (* Objet courant *)
-   | This
-   (* Classe parent *)
-   | Super
-   (* Création d'un nouvel objet *)
-   | New      of string
-   | NewCstr  of string * expr list
-   (* Appel de méthode *)
-   | MethCall of expr * string * expr list
-   | InstanceOf of expr * string
- 
- (* Accès mémoire : variable ou attribut d'un objet *)
- and mem_access =
-   | Var   of string
-   | Field of expr (* objet *) * string (* nom d'un attribut *)
- 
- (* Instructions *)
- type instr =
-   (* Affichage d'un entier *)
-   | Print  of expr
-   (* Écriture dans une variable ou un attribut *)
-   | Set    of mem_access * expr
-   (* Structures de contrôle usuelles *)
-   | If     of expr * seq * seq
-   | While  of expr * seq
-   (* Fin d'une fonction *)
-   | Return of expr
-   (* Expression utilisée comme instruction *)
-   | Expr   of expr
- 
- and seq = instr list
- 
- (* Définition de méthode 
- 
-    Syntaxe : method <type de retour> <nom> (<params>) { ... }
- 
-    Le corps de la méthode est similaire au corps d'une fonction. *)
- type method_def = {
-     method_name: string;
-     code: seq;
-     params: (string * typ) list;
-     locals: (string * typ) list;
-     return: typ;
-   }
-         
- (* Définition de classe 
- 
-    Syntaxe : class <nom de la classe> { ... }
-         ou : class <nom de la classe> extends <nom de la classe mère> { ... }
- 
-    On considère que toute classe C contient une définition de méthode de nom
-    "constructor" et de type de retour void, qui initialise les champs du 
-    paramètre implicite this. *)
- type class_def = {
-     class_name: string;
-     attributes: (string * typ) list;
-     methods: method_def list;
-     parent: string option;
-     is_attr_final: (string * bool) list;
-     static_attribut : (string * bool) list;
-   }
- 
- (* Programme complet : variables globales, classes, et une séquence 
-    d'instructions *)
- type program = {
-     classes: class_def list;
-     globals: (string * typ) list;
-     main: seq;
-   }
- 
+  open Lexing
+  open Kawaparser
+
+  exception Error of string
+
+  let keyword_or_ident =
+    let h = Hashtbl.create 17 in
+    List.iter (fun (s, k) -> Hashtbl.add h s k)
+      [ "print",      PRINT;
+        "main",       MAIN;
+        "true",       TRUE;
+        "false",      FALSE;
+        "var",        VAR;
+        "attribute",  ATTR;
+        "method",     METHOD;
+        "class",      CLASS;
+        "new",        NEW;
+        "this",       THIS;
+        "if",         IF;
+        "else",       ELSE;
+        "while",      WHILE;
+        "return",     RETURN;
+        "int",        TINT;
+        "bool",       TBOOL;
+        "void",       TVOID;
+        "extends",    EXTENDS;
+        "final",      FINAL;
+        "static",     STATIC;
+        "instanceof", INSTANCEOF;
+        "super",      SUPER;
+      ] ;
+    fun s ->
+      try  Hashtbl.find h s
+      with Not_found -> IDENT(s)
+          
+}
+
+let digit = ['0'-'9']
+let number = ['-']? digit+
+let alpha = ['a'-'z' 'A'-'Z']
+let ident = ['a'-'z' '_'] (alpha | '_' | digit)*
+  
+rule token = parse
+  | ['\n']            { new_line lexbuf; token lexbuf }
+  | [' ' '\t' '\r']+  { token lexbuf }
+
+  | "//" [^ '\n']* "\n"  { new_line lexbuf; token lexbuf }
+  | "/*"                 { comment lexbuf; token lexbuf }
+
+  | number as n  { INT(int_of_string n) }
+  | ident as id  { keyword_or_ident id }
+
+  | ";"  { SEMI }
+  | ","  { COMMA }
+  | "."  { DOT }
+  | "="  { SET }
+  | "("  { LPAR }
+  | ")"  { RPAR }
+  | "{"  { BEGIN }
+  | "}"  { END }
+  | "||" { OR }
+  | "&&" { AND }
+  | "!"  { NOT }
+  | "==" { EQ }
+  | "%"  { REM }
+  | "!=" { NEQ }
+  | "<"  { LT }
+  | "<=" { LE }
+  | ">"  { GT }
+  | ">=" { GE }
+  | "+"  { ADD }
+  | "/"  { DIV }
+  | "-"  { SUB }
+  | "*"  { MUL }
+  | _    { raise (Error ("unknown character : " ^ lexeme lexbuf)) }
+  | eof  { EOF }
+
+and comment = parse
+  | "*/" { () }
+  | _    { comment lexbuf }
+  | eof  { raise (Error "unterminated comment") }
+
