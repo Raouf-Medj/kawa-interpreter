@@ -17,12 +17,14 @@
 %token EQ NEQ LT LE GT GE
 %token PRINT
 %token EOF
+%token FINAL INSTANCEOF SUPER STATIC
+
 
 // %right SET
 %left OR
 %left AND
 %left EQ NEQ
-%left LT LE GT GE
+%left LT LE GT GE INSTANCEOF
 %left ADD SUB
 %left MUL DIV REM
 %right NEG
@@ -36,24 +38,47 @@
 
 program:
 | vrs=list(var_decl) cls=list(class_def) MAIN BEGIN main=list(instr) END EOF
-    { {classes=cls; globals=vrs; main} }
+    { {
+      classes=cls;
+      globals=
+        (let glb = List.fold_left (fun acc l -> acc @ l) [] vrs in
+        let has_duplicates lst =
+          let tbl = Hashtbl.create (List.length lst) in
+          List.fold_left (fun found x ->
+            if found then true
+            else if Hashtbl.mem tbl x then true
+            else (Hashtbl.add tbl x (); false)
+          ) false lst in
+        if has_duplicates (List.map fst glb) then failwith "Duplicate variable declaration"
+        else glb); 
+      main
+    } }
 ;
 
 class_def:
-| CLASS IDENT opt_parent BEGIN list(attr_decl) list(method_def) END { { 
-    class_name = $2;
-    attributes = $5;
-    methods = $6;
-    parent = $3;
-  } }
+| CLASS IDENT opt_parent BEGIN list(attr_decl) list(method_def) END {
+    {
+      class_name = $2; (* Nom de la classe *)
+      parent = $3; (* Classe parent, si elle existe *)
+      attributes = List.map (fun (id, typ, _, _) -> (id, typ)) $5; (* Liste des attributs *)
+      methods = $6; (* Liste des méthodes *)
+      is_attr_final = List.map (fun (id, _, is_final, _) -> (id, is_final)) $5; (* Finalité des attributs *)
+      static_attribut = List.map (fun (id, _, _, is_static) -> (id, is_static)) $5; (* Attributs statiques *)
+    }
+  }
 ;
 
+
 var_decl:
-| VAR typp IDENT SEMI { ($3, $2) }
+| VAR typp separated_nonempty_list(COMMA, IDENT) SEMI { List.map (fun ident -> (ident, $2)) $3 }
 ;
 
 attr_decl:
-| ATTR typp IDENT SEMI { ($3, $2) }
+| ATTR typp IDENT SEMI { ($3, $2, false, false) }
+| ATTR FINAL typp IDENT SEMI { ($4, $3, true, false) }
+| ATTR STATIC typp IDENT SEMI { ($4, $3, false, true) }
+| ATTR STATIC FINAL typp IDENT SEMI | ATTR FINAL STATIC typp IDENT SEMI { ($5, $4, true, true) }
+
 ;
 
 param_decl:
@@ -65,7 +90,17 @@ method_def:
     method_name = id;
     code = sequence;
     params = param_lst;
-    locals = locs;
+    locals = 
+      (let glb = List.fold_left (fun acc l -> acc @ l) [] locs in
+      let has_duplicates lst =
+        let tbl = Hashtbl.create (List.length lst) in
+        List.fold_left (fun found x ->
+          if found then true
+          else if Hashtbl.mem tbl x then true
+          else (Hashtbl.add tbl x (); false)
+        ) false lst in
+      if has_duplicates (List.map fst glb) then failwith "Duplicate variable declaration"
+      else glb);
     return = tp;
   } }
 ;
@@ -96,6 +131,7 @@ expr:
 | TRUE { Bool(true) }
 | FALSE { Bool(false) }
 | THIS { This }
+| SUPER { Super }
 | mem { Get($1) }
 | expr ADD expr { Binop(Add, $1, $3) }
 | expr SUB expr { Binop(Sub, $1, $3) }
@@ -110,6 +146,7 @@ expr:
 | expr NEQ expr { Binop(Neq, $1, $3) }
 | expr AND expr { Binop(And, $1, $3) }
 | expr OR expr { Binop(Or, $1, $3) }
+| expr INSTANCEOF IDENT { InstanceOf($1, $3) }
 | SUB expr %prec NEG { Unop(Opp, $2) }
 | NOT expr { Unop(Not, $2) }
 | LPAR expr RPAR { $2 }
