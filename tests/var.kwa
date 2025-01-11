@@ -5,11 +5,14 @@ var int[] a, b;
 
 main {
   x = 1;
-  y= 2;
-  z=3;
-  t=true;
+  y = 2;
+  z = 3;
+  t = true;
   a = new int[3];
+  b = new int[2];
+  b[1] = 32;
   print(a[2]);
+  print(b[1]);
   print(x+y+z);
   print(t);
 }

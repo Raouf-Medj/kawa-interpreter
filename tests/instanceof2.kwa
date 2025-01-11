@@ -33,12 +33,12 @@ main {
   b = new bird;
 
   // test avec `instanceof`
-  print (a instanceOf(animal)); // true
-  print (d instanceOf(animal)); // true
-  print (c instanceOf(animal)); // true
-  print (b instanceOf(animal)); // false
-  print (d instanceOf(dog));    // true
-  print (d instanceOf(cat));    // false  
+  print (a instanceof(animal)); // true
+  print (d instanceof(animal)); // true
+  print (c instanceof(animal)); // true
+  print (b instanceof(animal)); // false
+  print (d instanceof(dog));    // true
+  print (d instanceof(cat));    // false  
   // test avec une variable de type `animal` contenant un `dog`
   
   // modifications des champs et vérification des valeurs
