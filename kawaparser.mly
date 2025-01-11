@@ -4,6 +4,10 @@
   open Kawa
 
   let rec tarray_maker d t= if(d=1) then TArray t else TArray (tarray_maker (d-1) t)  
+  let rec flatten lst =
+  match lst with
+  | [] -> []
+  | hd :: tl -> hd @ (flatten tl)
 
 %}
 
@@ -42,24 +46,29 @@
 
 program:
 | vrs=list(var_decl) cls=list(class_def) MAIN BEGIN main=list(instr) END EOF
-    { {classes=cls; globals=vrs; main} }
+    { {classes=cls; globals=(flatten vrs); main} }
 ;
 
 class_def:
-| CLASS IDENT opt_parent BEGIN list(attr_decl) list(method_def) END { { 
+| CLASS IDENT opt_parent BEGIN attr=list(attr_decl) list(method_def) END { { 
     class_name = $2;
-    attributes = $5;
+    attributes = (flatten attr);
     methods = $6;
     parent = $3;
   } }
 ;
 
 var_decl:
-| VAR typpc IDENT SEMI { ($3, $2) }
+| VAR typpc list(suite) SEMI { List.map (fun x -> (x,$2)) $3 }
 ;
 
 attr_decl:
-| ATTR typpc IDENT SEMI { ($3, $2) }
+| ATTR typpc list(suite) SEMI { List.map (fun x -> (x,$2)) $3}
+;
+
+suite : 
+| IDENT COMMA {$1}
+| IDENT {$1}
 ;
 
 param_decl:
@@ -71,7 +80,7 @@ method_def:
     method_name = id;
     code = sequence;
     params = param_lst;
-    locals = locs;
+    locals = (flatten locs);
     return = tp;
   } }
 ;
