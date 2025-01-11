@@ -1,162 +1,158 @@
-%{
+open Kawa
 
-  open Lexing
-  open Kawa
+exception Error of string
+let error s = raise (Error s)
+let type_error ty_actual ty_expected =
+  error (Printf.sprintf "expected %s, got %s"
+           (typ_to_string ty_expected) (typ_to_string ty_actual))
 
-%}
+module Env = Map.Make(String)
+type tenv = typ Env.t
 
-%token <int> INT
-%token <string> IDENT
-%token MAIN
-%token LPAR RPAR BEGIN END SEMI COMMA DOT SET
-%token VAR ATTR METHOD CLASS NEW THIS EXTENDS
-%token TINT TBOOL TVOID
-%token TRUE FALSE
-%token IF ELSE WHILE RETURN
-%token ADD DIV SUB MUL REM OR AND NOT
-%token EQ NEQ LT LE GT GE
-%token PRINT
-%token EOF
-%token FINAL INSTANCEOF SUPER STATIC
+let add_env l tenv =
+  List.fold_left (fun env (x, t) -> Env.add x t env) tenv l
+let typecheck_prog p =
+  let tenv = add_env p.globals Env.empty in
 
+  let rec find_class classes cname =
+    try List.find (fun c -> c.class_name = cname) classes
+    with Not_found -> error ("Class not found: " ^ cname)
 
-// %right SET
-%left OR
-%left AND
-%left EQ NEQ
-%left LT LE GT GE INSTANCEOF
-%left ADD SUB
-%left MUL DIV REM
-%right NEG
-%right NOT
-%left DOT
+  and find_method cls mname =
+    try List.find (fun m -> m.method_name = mname) cls.methods
+    with Not_found -> error ("Method not found: " ^ mname)
 
-%start program
-%type <Kawa.program> program
+  and check e typ tenv =
+    let typ_e = type_expr e tenv in
+    match typ_e, typ with
+    | TClass cls1, TClass cls2 -> 
+      if not (class_incluse p.classes cls1 cls2) 
+        then error ("Class " ^ cls1 ^ " is not a subclass of " ^ cls2)
+    | _ -> if typ_e <> typ then type_error typ_e typ
 
-%%
+  and class_incluse classes cname1 cname2 =
+    if cname1 = cname2 then true
+    else
+      let cls = find_class classes cname1 in
+      match cls.parent with
+      | Some parent -> class_incluse classes parent cname2
+      | None -> false
+  
+  and type_expr e tenv = match e with
+    | Int _  -> TInt
+    | Bool _ -> TBool
+    | Unop (Opp, e1) ->
+        (match type_expr e1 tenv with
+        | TInt -> TInt
+        | ty -> type_error ty TInt)
+    | Unop (Not, e1) ->
+        (match type_expr e1 tenv with
+        | TBool -> TBool
+        | ty -> type_error ty TBool)
+    | Binop (op, e1, e2) ->
+      (match op with
+      | Add | Sub | Mul | Div | Rem ->
+          check e1 TInt tenv; check e2 TInt tenv; TInt
+      | Lt | Le | Gt | Ge ->
+          check e1 TInt tenv; check e2 TInt tenv; TBool
+      | Eq | Neq ->
+          let t1 = type_expr e1 tenv in
+          let t2 = type_expr e2 tenv in
+          if t1 <> t2 then type_error t2 t1;
+          TBool
+      | And | Or ->
+          check e1 TBool tenv; check e2 TBool tenv; TBool)
+    | Get (Var x) -> (try Env.find x tenv with Not_found -> error ("Variable not found: " ^ x))
+    | Get (Field (e, field)) ->
+        (match type_expr e tenv with
+        | TClass cname ->
+            let cls = find_class p.classes cname in
+            find_field_type cls field
+        | ty -> type_error ty (TClass "object"))
+    | This -> 
+      (try Env.find "this" tenv with Not_found -> error ("Unbound 'this' in the current context"))
+    | New cname -> 
+      let _ = find_class p.classes cname in TClass cname
+    | NewCstr (cname, args) ->
+        let cls = find_class p.classes cname in
+        let cstr_params =
+          match List.find_opt (fun m -> m.method_name = "constructor") cls.methods with
+          | Some m -> List.map snd m.params
+          | None -> error ("Constructor not defined in class: " ^ cname)
+        in
+        if List.length cstr_params <> List.length args then
+          error "Constructor argument count mismatch";
+        List.iter2 (fun param_type arg -> check arg param_type tenv) cstr_params args;
+        TClass cname
+    | MethCall (obj, mname, args) ->
+        (match type_expr obj tenv with
+        | TClass cname ->
+            let cls = find_class p.classes cname in
+            let method_ = find_method cls mname in
+            if List.length method_.params <> List.length args then
+              error "Method argument count mismatch";
+            List.iter2 (fun (_, param_type) arg -> check arg param_type tenv) method_.params args;
+            method_.return
+        | ty -> type_error ty (TClass "object"))
+  
+  and find_field_type cls field =
+    try List.assoc field cls.attributes
+    with Not_found ->
+      match cls.parent with
+      | Some parent_name ->
+          let parent_cls = find_class p.classes parent_name in
+          find_field_type parent_cls field
+      | None -> error ("Field not found: " ^ field)
+  
+  and find_field_is_final cls field =
+    try List.assoc field cls.is_attr_final
+    with Not_found ->
+      match cls.parent with
+      | Some parent_name ->
+          let parent_cls = find_class p.classes parent_name in
+          find_field_is_final parent_cls field
+      | None -> error ("Field not found: " ^ field)
 
-program:
-| vrs=list(var_decl) cls=list(class_def) MAIN BEGIN main=list(instr) END EOF
-    { {
-      classes=cls;
-      globals=
-        (let glb = List.fold_left (fun acc l -> acc @ l) [] vrs in
-        let has_duplicates lst =
-          let tbl = Hashtbl.create (List.length lst) in
-          List.fold_left (fun found x ->
-            if found then true
-            else if Hashtbl.mem tbl x then true
-            else (Hashtbl.add tbl x (); false)
-          ) false lst in
-        if has_duplicates (List.map fst glb) then failwith "Duplicate variable declaration"
-        else glb); 
-      main
-    } }
-;
+  and check_instr i ret tenv mname = match i with
+    | Print e -> (
+      try check e TInt tenv 
+      with exn ->
+        try check e TBool tenv
+        with exn -> check e TVoid tenv)
+    | Set (Var x, e) ->
+        let tvar = Env.find x tenv in
+        check e tvar tenv
+    | Set (Field (obj, field), e) ->
+        (match type_expr obj tenv with
+        | TClass cname ->
+            let cls = find_class p.classes cname in
+            let tfield = find_field_type cls field in
+            let is_final_field = find_field_is_final cls field in
+            if (is_final_field && not (String.equal mname "constructor")) then error ("Field " ^ field ^ " is final");
+            check e tfield tenv
+        | ty -> type_error ty (TClass "object"))
+    | If (cond, then_seq, else_seq) ->
+        check cond TBool tenv;
+        check_seq then_seq ret tenv mname;
+        check_seq else_seq ret tenv mname
+    | While (cond, body) ->
+        check cond TBool tenv;
+        check_seq body ret tenv mname
+    | Return e -> check e ret tenv
+    | Expr e -> check e TVoid tenv
 
-class_def:
-| CLASS IDENT opt_parent BEGIN list(attr_decl) list(method_def) END {
-    {
-      class_name = $2; (* Nom de la classe *)
-      parent = $3; (* Classe parent, si elle existe *)
-      attributes = List.map (fun (id, typ, _, _) -> (id, typ)) $5; (* Liste des attributs *)
-      methods = $6; (* Liste des méthodes *)
-      is_attr_final = List.map (fun (id, _, is_final, _) -> (id, is_final)) $5; (* Finalité des attributs *)
-      static_attribut = List.map (fun (id, _, _, is_static) -> (id, is_static)) $5; (* Attributs statiques *)
-    }
-  }
-;
+  and check_seq s ret tenv mname =
+    List.iter (fun i -> check_instr i ret tenv mname) s
 
+  and check_method cls method_ tenv =
+    let method_env = add_env (method_.params @ method_.locals) tenv in
+    check_seq method_.code method_.return method_env method_.method_name
 
-var_decl:
-| VAR typp separated_nonempty_list(COMMA, IDENT) SEMI { List.map (fun ident -> (ident, $2)) $3 }
-;
+  and check_class cls tenv =
+    let class_env = add_env cls.attributes tenv in
+    let class_env_this = Env.add "this" (TClass(cls.class_name)) class_env in
+    List.iter (fun method_ -> check_method cls method_ class_env_this) cls.methods
 
-attr_decl:
-| ATTR typp IDENT SEMI { ($3, $2, false, false) }
-| ATTR FINAL typp IDENT SEMI { ($4, $3, true, false) }
-| ATTR STATIC typp IDENT SEMI { ($4, $3, false, true) }
-| ATTR STATIC FINAL typp IDENT SEMI | ATTR FINAL STATIC typp IDENT SEMI { ($5, $4, true, true) }
-
-;
-
-param_decl:
-| typp IDENT { ($2, $1) }
-;
-
-method_def:
-| METHOD tp=typp id=IDENT LPAR param_lst=separated_list(COMMA, param_decl) RPAR BEGIN locs=list(var_decl) sequence=list(instr) END { {
-    method_name = id;
-    code = sequence;
-    params = param_lst;
-    locals = 
-      (let glb = List.fold_left (fun acc l -> acc @ l) [] locs in
-      let has_duplicates lst =
-        let tbl = Hashtbl.create (List.length lst) in
-        List.fold_left (fun found x ->
-          if found then true
-          else if Hashtbl.mem tbl x then true
-          else (Hashtbl.add tbl x (); false)
-        ) false lst in
-      if has_duplicates (List.map fst glb) then failwith "Duplicate variable declaration"
-      else glb);
-    return = tp;
-  } }
-;
-
-opt_parent:
-| EXTENDS IDENT { Some($2) }
-| (* empty *) { None }
-;
-
-typp:
-| TINT { TInt }
-| TBOOL { TBool }
-| TVOID { TVoid }
-| IDENT { TClass($1) }
-;
-
-instr:
-| PRINT LPAR e=expr RPAR SEMI { Print(e) }
-| mem SET expr SEMI { Set($1, $3) }
-| IF LPAR e=expr RPAR BEGIN b1=list(instr) END ELSE BEGIN b2=list(instr) END { If(e, b1, b2) }
-| WHILE LPAR e=expr RPAR BEGIN b=list(instr) END { While(e, b) }
-| RETURN expr SEMI { Return($2) }
-| expr SEMI { Expr($1) }
-;
-
-expr:
-| INT { Int($1) }
-| TRUE { Bool(true) }
-| FALSE { Bool(false) }
-| THIS { This }
-| SUPER { Super }
-| mem { Get($1) }
-| expr ADD expr { Binop(Add, $1, $3) }
-| expr SUB expr { Binop(Sub, $1, $3) }
-| expr MUL expr { Binop(Mul, $1, $3) }
-| expr DIV expr { Binop(Div, $1, $3) }
-| expr REM expr { Binop(Rem, $1, $3) }
-| expr LT expr { Binop(Lt, $1, $3) }
-| expr LE expr { Binop(Le, $1, $3) }
-| expr GT expr { Binop(Gt, $1, $3) }
-| expr GE expr { Binop(Ge, $1, $3) }
-| expr EQ expr { Binop(Eq, $1, $3) }
-| expr NEQ expr { Binop(Neq, $1, $3) }
-| expr AND expr { Binop(And, $1, $3) }
-| expr OR expr { Binop(Or, $1, $3) }
-| expr INSTANCEOF IDENT { InstanceOf($1, $3) }
-| SUB expr %prec NEG { Unop(Opp, $2) }
-| NOT expr { Unop(Not, $2) }
-| LPAR expr RPAR { $2 }
-| NEW IDENT { New($2) }
-| NEW IDENT LPAR separated_list(COMMA, expr) RPAR { NewCstr($2, $4) }
-| expr DOT IDENT LPAR separated_list(COMMA, expr) RPAR { MethCall($1, $3, $5) }
-;
-
-mem:
-| IDENT { Var($1) }
-| expr DOT IDENT { Field($1, $3) }
-;
-
+  in
+  List.iter (fun cls -> check_class cls tenv) p.classes;
+  check_seq p.main TVoid tenv "main"
