@@ -20,7 +20,7 @@ let rec exec_prog (p: program): unit =
   let env = Hashtbl.create 16 in
   (* Initialize global variables *)
   List.iter (fun (x, _) -> Hashtbl.add env x Null) p.globals;
-  
+
   let rec collect_attributes cls =
     let parent_attributes = match cls.parent with
       | Some parent_name ->
@@ -33,13 +33,42 @@ let rec exec_prog (p: program): unit =
     in
     parent_attributes @ cls.attributes
   in
-  let create_object cname =
-    match List.find_opt (fun c -> c.class_name = cname) p.classes with
-    | Some cls ->
-        let fields = Hashtbl.create 16 in
-        List.iter (fun (field, _) -> Hashtbl.add fields field Null) (collect_attributes cls);
-        VObj { cls = cname; fields }
-    | None -> error ("Class not found: " ^ cname)
+  (* Table globale pour stocker les attributs statiques des classes *)
+let static_fields = Hashtbl.create 16
+in 
+(* Initialiser les attributs statiques d'une classe *)
+let init_static_fields cls =
+  match Hashtbl.find_opt static_fields cls.class_name with
+  | None -> 
+      (* Initialise les valeurs des champs statiques *)
+      let fields = Hashtbl.create 16 in
+      cls.static_attribut 
+      |> List.iter (fun (field, is_static) -> 
+          if is_static then Hashtbl.add fields field Null);
+      Hashtbl.add static_fields cls.class_name fields
+  | Some _ -> () (* Ne rien faire si déjà initialisé *)
+
+in
+(* Fonction de création d'un objet d'instance *)
+let create_object cname =
+  match List.find_opt (fun c -> c.class_name = cname) p.classes with
+  | Some cls ->
+      (* Initialisation des attributs statiques si ce n'est pas encore fait *)
+      (**********************)
+      init_static_fields cls;
+      (* Création des attributs d'instance *)
+      let fields = Hashtbl.create 16 in
+      List.iter 
+        (fun (field, _) -> 
+          if not (List.exists (fun (sfield, test) -> (sfield = field) && (test)) cls.static_attribut)
+          then begin Hashtbl.add fields field Null end
+        )
+        (collect_attributes cls);
+
+      VObj { cls = cname; fields = fields }
+  | None -> error ("Class not found: " ^ cname)
+
+
   in
   let rec eval_expr e env this super =
     match e with
@@ -160,6 +189,24 @@ let rec exec_prog (p: program): unit =
       match cls.parent with
       | Some parent -> class_incluse classes parent cname2
       | None -> false
+         | Get (Field (e, field)) ->
+          (match eval_expr e env this with
+           | VObj o ->
+               (try 
+                  (* Recherche dans les champs d'instance *)
+                  Hashtbl.find o.fields field
+                with Not_found -> 
+                  (* Si introuvable, rechercher dans les champs statiques *)
+                  let cname = o.cls in
+                  (match Hashtbl.find_opt static_fields cname with
+                   | Some class_static_fields ->
+                       (try 
+                          Hashtbl.find class_static_fields field
+                        with Not_found -> 
+                          error ("Field not found: " ^ field))
+                   | None ->
+                       error ("Static fields not initialized for class: " ^ cname)))
+           | _ -> error "Field access on non-object")
 
   and eval_binop op v1 v2 =
     match op, v1, v2 with
@@ -251,44 +298,56 @@ let rec exec_prog (p: program): unit =
         let v = eval_expr e env this super in
         Hashtbl.replace env x v
     | Set (Field (obj_expr, field), e) ->
-        let v = eval_expr e env this super in
-        (match eval_expr obj_expr env this super with
-         | VObj obj -> 
-          let is_final = (let cls = find_class obj.cls p.classes in find_field_is_final cls field) in
-          let vfield = (try Hashtbl.find obj.fields field with Not_found -> try Hashtbl.find env field with Not_found -> error ("Field not found: " ^ field)) in
-          if (is_final && vfield <> Null) then error ("Field is final: " ^ field);
-          Hashtbl.replace obj.fields field v
-         | _ -> error "Field assignment on non-object")
-    | Set (ArrayAccess (array_name, indices), e) ->
-      (* Evaluate all index expressions *)
-      let index_vals = List.map (fun index_expr -> 
-        match eval_expr index_expr env this super with
-        | VInt idx -> idx
-        | _ -> error "Array indices must be integers"
-      ) indices in
+          let v = eval_expr e env this in
+          (match eval_expr obj_expr env this with
+           | VObj obj -> 
+               let cls = find_class obj.cls p.classes in
+               let is_final = find_field_is_final cls field in
+              
+               
+               if not (List.exists (fun (sfield, test) -> (sfield = field) && (test)) cls.static_attribut) then
+                let vfield = 
+                  (try Hashtbl.find obj.fields field
+                   with Not_found -> try Hashtbl.find env field
+                                     with Not_found -> (*Hashtbl.iter (fun x y -> Printf.printf "Hello %s" x ) obj.fields;*) error ("Hna Field not found: " ^ field))
+                in
+                if is_final && vfield <> Null then error ("Field is final: " ^ field);
+                 (* Mise à jour du champ d'instance *)
+                 Hashtbl.replace obj.fields field v 
+               else
+                 (* Mise à jour du champ statique *)
+                 let cname = obj.cls in
+                 (match Hashtbl.find_opt static_fields cname with
+                  | Some class_static_fields ->
+                      (* Champ statique déjà initialisé pour cette classe *)
+                      Hashtbl.replace class_static_fields field v
+                  | None ->
+                      (* Impossible, champs statiques non initialisés *)
+                      error ("Static fields not initialized for class: " ^ cname)
+                 )
+           | _ -> error "Field assignment on non-object")
       
-      (* Retrieve the array value from the environment *)
-      (match Hashtbl.find_opt env array_name with
-      | Some (VArray arr) ->
-          let rec set_value_in_array nested_array index_list new_value =
-            match index_list with
-            | [last_idx] -> 
-                if last_idx >= 0 && last_idx < Array.length nested_array then
-                  nested_array.(last_idx) <- new_value
-                else error "Array index out of bounds"
-            | idx :: rest ->
-                if idx >= 0 && idx < Array.length nested_array then
-                  (match nested_array.(idx) with
-                  | VArray sub_array -> set_value_in_array sub_array rest new_value
-                  | _ -> error "Invalid array structure during access")
-                else error "Array index out of bounds"
-            | [] -> error "Index list cannot be empty"
-          in
-          
-          (* Evaluate the new value and assign it to the array *)
-          let new_value = eval_expr e env this super in
-          set_value_in_array arr index_vals new_value
-      | _ -> error "Array not found or invalid structure for assignment")
+      (*| Set (Field (obj_expr, field), e) ->
+          let v = eval_expr e env this in
+          match eval_expr obj_expr env this with
+          | VObj obj -> 
+              let cls = find_class obj.cls p.classes in
+              (* Vérification si le champ est final *)
+              let is_final = find_field_is_final cls field in
+              (* Recherche du champ dans les attributs d'instance ou l'environnement *)
+              let vfield = 
+                try Hashtbl.find obj.fields field 
+                with Not_found -> 
+                  try Hashtbl.find env field 
+                  with Not_found -> error ("Field not found: " ^ field) 
+              in
+              (* Si le champ est final et déjà initialisé, lever une erreur *)
+              if is_final && vfield <> Null then 
+                error ("Field is final: " ^ field);
+              (* Mise à jour de la valeur du champ dans les attributs d'instance *)
+              Hashtbl.replace obj.fields field v
+          | _ -> 
+              error "Field assignment on non-object or unsupported expression"*)
     | If (cond, then_seq, else_seq) ->
         (match eval_expr cond env this super with
          | VBool true -> exec_seq then_seq env this super

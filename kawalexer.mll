@@ -27,6 +27,7 @@
         "void",       TVOID;
         "extends",    EXTENDS;
         "final",      FINAL;
+        "static",     STATIC;
         "instanceof", INSTANCEOF;
         "super",      SUPER;
       ] ;

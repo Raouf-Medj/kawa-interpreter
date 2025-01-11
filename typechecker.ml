@@ -81,7 +81,7 @@ let typecheck_prog p =
       (match type_expr e tenv with
       | TClass cname ->
           let cls = find_class p.classes cname in
-          find_field_type cls field
+          find_field_type_type cls field
       | ty -> type_error ty (TClass "object"))
     | Get (ArrayAccess(name, indices)) -> (
       try

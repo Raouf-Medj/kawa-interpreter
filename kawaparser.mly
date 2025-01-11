@@ -20,7 +20,7 @@
 %token EQ NEQ LT LE GT GE STRUCTEG STRUCTINEG
 %token PRINT
 %token EOF
-%token FINAL INSTANCEOF SUPER
+%token FINAL INSTANCEOF SUPER STATIC
 
 
 // %right SET
@@ -61,22 +61,29 @@ program:
 ;
 
 class_def:
-| CLASS IDENT opt_parent BEGIN list(attr_decl) list(method_def) END { { 
-    class_name = $2;
-    attributes = List.map (fun (id, typ, _) -> (id, typ)) $5;
-    methods = $6;
-    parent = $3;
-    is_attr_final = List.map (fun (id, _, is_final) -> (id, is_final)) $5;
-  } }
+| CLASS IDENT opt_parent BEGIN list(attr_decl) list(method_def) END {
+    {
+      class_name = $2; (* Nom de la classe *)
+      parent = $3; (* Classe parent, si elle existe *)
+      attributes = List.map (fun (id, typ, _, _) -> (id, typ)) $5; (* Liste des attributs *)
+      methods = $6; (* Liste des méthodes *)
+      is_attr_final = List.map (fun (id, _, is_final, _) -> (id, is_final)) $5; (* Finalité des attributs *)
+      static_attribut = List.map (fun (id, _, _, is_static) -> (id, is_static)) $5; (* Attributs statiques *)
+    }
+  }
 ;
+
 
 var_decl:
 | VAR typpc separated_nonempty_list(COMMA, IDENT) SEMI { List.map (fun ident -> (ident, $2)) $3 }
 ;
 
 attr_decl:
-| ATTR typpc IDENT SEMI { ($3, $2, false) }
-| ATTR FINAL typpc IDENT SEMI { ($4, $3, true) }
+| ATTR typpc IDENT SEMI { ($3, $2, false, false) }
+| ATTR FINAL typpc IDENT SEMI { ($4, $3, true, false) }
+| ATTR STATIC typpc IDENT SEMI { ($4, $3, false, true) }
+| ATTR STATIC FINAL typpc IDENT SEMI | ATTR FINAL STATIC typp IDENT SEMI { ($5, $4, true, true) }
+
 ;
 
 param_decl:
@@ -163,9 +170,8 @@ expr:
 | expr DOT IDENT LPAR separated_list(COMMA, expr) RPAR { MethCall($1, $3, $5) }
 | NEW typp nonempty_list(list_array) { EArrayCreate($2, $3) }
 | e = expr INSTANCEOF LPAR i = IDENT RPAR {InstanceOf(e , i)}
-
-
 ;
+
 %inline list_array : 
 | LBRACKET expr RBRACKET {$2}
 
@@ -173,6 +179,5 @@ mem:
 | IDENT { Var($1) }
 | expr DOT IDENT { Field($1, $3) }
 | IDENT nonempty_list(list_array) {ArrayAccess($1, $2)}
-
 ;
 
