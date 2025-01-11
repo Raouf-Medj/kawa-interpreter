@@ -1,10 +1,12 @@
-var int x;
-var int y;
+var int x, y;
+var int z;
+var bool t, b;
 
 main {
   x = 1;
-  y = 6;
-  x = x+2;
-  y = y*(x+4);
-  print(y);
+  y= 2;
+  z=3;
+  t=true;
+  print(x+y+z);
+  print(t);
 }
