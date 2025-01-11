@@ -59,11 +59,11 @@ class_def:
 ;
 
 var_decl:
-| VAR typpc list(suite) init SEMI { List.map (fun x -> (x,$2,$4)) $3 }
+| VAR typpc list(suite) SEMI { List.map (fun x -> (fst x,$2,snd x)) $3}
 ;
 
 attr_decl:
-| ATTR typpc list(suite) init SEMI { List.map (fun x -> (x,$2,$4)) $3}
+| ATTR typpc list(suite) SEMI { List.map (fun x -> (fst x,$2,snd x)) $3}
 ;
 
 init:
@@ -71,8 +71,8 @@ init:
 |           {None}
 
 suite : 
-| IDENT COMMA {$1}
-| IDENT {$1}
+| IDENT init COMMA {($1,$2)}
+| IDENT init {($1,$2)}
 ;
 
 
