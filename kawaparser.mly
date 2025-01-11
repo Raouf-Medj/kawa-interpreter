@@ -16,7 +16,7 @@
 %token TINT TBOOL TVOID
 %token TRUE FALSE
 %token IF ELSE WHILE RETURN
-%token ADD DIV SUB MUL REM OR AND NOT INSTANCEOF
+%token ADD DIV SUB MUL REM OR AND NOT
 %token EQ NEQ LT LE GT GE STRUCTEG STRUCTINEG
 %token PRINT
 %token EOF
@@ -61,7 +61,7 @@ program:
 ;
 
 class_def:
-| CLASS IDENT opt_parent BEGIN attr=list(attr_decl) list(method_def) END { { 
+| CLASS IDENT opt_parent BEGIN list(attr_decl) list(method_def) END { { 
     class_name = $2;
     attributes = List.map (fun (id, typ, _) -> (id, typ)) $5;
     methods = $6;
@@ -97,7 +97,7 @@ method_def:
           else if Hashtbl.mem tbl x then true
           else (Hashtbl.add tbl x (); false)
         ) false lst in
-      if has_duplicates (List.map fst glb) then failwith "Duplicate variable declaration"
+      if has_duplicates (List.map fst loc) then failwith "Duplicate variable declaration"
       else loc);
     return = tp;
   } }
