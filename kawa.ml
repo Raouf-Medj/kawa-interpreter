@@ -9,12 +9,16 @@ type typ =
   | TInt
   | TBool
   | TClass of string
+  | TArray of typ 
 
-let typ_to_string = function
+
+let rec typ_to_string = function
   | TVoid    -> "void"
   | TInt     -> "int"
   | TBool    -> "bool"
   | TClass c -> c
+  | TArray a -> Printf.sprintf "%s[]" (typ_to_string a)
+
 
 type unop  = Opp | Not
 type binop = Add | Sub | Mul | Div | Rem
@@ -35,13 +39,18 @@ type expr =
   (* Création d'un nouvel objet *)
   | New      of string
   | NewCstr  of string * expr list
+  (*Check si c'est une instance*)
+  | InstanceOf of expr * string
   (* Appel de méthode *)
   | MethCall of expr * string * expr list
+  | EArrayCreate of typ * expr list  (* Création d'un tableau : type et taille *)
 
 (* Accès mémoire : variable ou attribut d'un objet *)
 and mem_access =
   | Var   of string
   | Field of expr (* objet *) * string (* nom d'un attribut *)
+  | ArrayAccess of string (* nom tableau *) * expr list (* indice *)
+
 
 (* Instructions *)
 type instr =
