@@ -50,16 +50,19 @@ let error s = raise (Error s)
 
 
 let rec exec_prog (p: program): unit =
-
-  let create_object cname =
+  let env = Hashtbl.create 16 in
+  let rec create_object cname =
     match List.find_opt (fun c -> c.class_name = cname) p.classes with
     | Some cls ->
         let fields = Hashtbl.create 16 in
-        List.iter (fun (field, _, _) -> Hashtbl.add fields field Null) cls.attributes;
+        List.iter (fun (field, _, init) ->
+          match init with 
+          | Some v -> Hashtbl.add fields field (eval_expr v env None)
+          | None-> Hashtbl.add fields field Null )
+          cls.attributes;
         VObj { cls = cname; fields }
     | None -> error ("Class not found: " ^ cname)
-  in
-  let rec eval_expr e env this =
+  and eval_expr e env this =
     match e with
     | Int n -> VInt n
     | Bool b -> VBool b
@@ -358,11 +361,10 @@ let rec exec_prog (p: program): unit =
         local_env
     
   in
-  let env = Hashtbl.create 16 in
   (* Initialize global variables *)
   List.iter (fun (x, _, init) ->
     match init with 
     | Some v -> Hashtbl.add env x (eval_expr v env None)
-    |None-> Hashtbl.add env x Null 
+    | None-> Hashtbl.add env x Null 
   )p.globals;
   ignore (exec_seq p.main env None)
