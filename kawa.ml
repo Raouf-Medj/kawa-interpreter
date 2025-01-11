@@ -23,7 +23,8 @@ let rec typ_to_string = function
 type unop  = Opp | Not
 type binop = Add | Sub | Mul | Div | Rem
            | Lt  | Le  | Gt | Ge | Eq  | Neq
-           | And | Or
+           | And | Or 
+           | Structeg |Structineg
 
 (* Expressions *)
 type expr =
@@ -76,8 +77,8 @@ and seq = instr list
 type method_def = {
     method_name: string;
     code: seq;
-    params: (string * typ) list;
-    locals: (string * typ) list;
+    params: (string * typ*(expr option) ) list;
+    locals: (string * typ *(expr option)) list;
     return: typ;
   }
         
@@ -91,7 +92,7 @@ type method_def = {
    paramètre implicite this. *)
 type class_def = {
     class_name: string;
-    attributes: (string * typ) list;
+    attributes: (string * typ * (expr option)) list;
     methods: method_def list;
     parent: string option;
   }
@@ -100,6 +101,6 @@ type class_def = {
    d'instructions *)
 type program = {
     classes: class_def list;
-    globals: (string * typ) list;
+    globals: (string * typ * (expr option)) list;
     main: seq;
   }
