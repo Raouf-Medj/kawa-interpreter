@@ -10,8 +10,11 @@ main {
   a = new point;
   b = new point;
   a.y = 2;
-  a.x=1;
+  a.x = 1;
   b.y = 4;
-  b.x =2;
+  b.x = 2;
   print(a.x);
+  print(a.y);
+  print(b.x);
+  print(b.y);
 }
