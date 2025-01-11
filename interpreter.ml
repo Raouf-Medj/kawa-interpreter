@@ -298,56 +298,34 @@ let create_object cname =
         let v = eval_expr e env this super in
         Hashtbl.replace env x v
     | Set (Field (obj_expr, field), e) ->
-          let v = eval_expr e env this in
-          (match eval_expr obj_expr env this with
-           | VObj obj -> 
-               let cls = find_class obj.cls p.classes in
-               let is_final = find_field_is_final cls field in
-              
-               
-               if not (List.exists (fun (sfield, test) -> (sfield = field) && (test)) cls.static_attribut) then
-                let vfield = 
-                  (try Hashtbl.find obj.fields field
-                   with Not_found -> try Hashtbl.find env field
-                                     with Not_found -> (*Hashtbl.iter (fun x y -> Printf.printf "Hello %s" x ) obj.fields;*) error ("Hna Field not found: " ^ field))
-                in
-                if is_final && vfield <> Null then error ("Field is final: " ^ field);
-                 (* Mise à jour du champ d'instance *)
-                 Hashtbl.replace obj.fields field v 
-               else
-                 (* Mise à jour du champ statique *)
-                 let cname = obj.cls in
-                 (match Hashtbl.find_opt static_fields cname with
-                  | Some class_static_fields ->
-                      (* Champ statique déjà initialisé pour cette classe *)
-                      Hashtbl.replace class_static_fields field v
-                  | None ->
-                      (* Impossible, champs statiques non initialisés *)
-                      error ("Static fields not initialized for class: " ^ cname)
-                 )
-           | _ -> error "Field assignment on non-object")
-      
-      (*| Set (Field (obj_expr, field), e) ->
-          let v = eval_expr e env this in
-          match eval_expr obj_expr env this with
-          | VObj obj -> 
-              let cls = find_class obj.cls p.classes in
-              (* Vérification si le champ est final *)
-              let is_final = find_field_is_final cls field in
-              (* Recherche du champ dans les attributs d'instance ou l'environnement *)
-              let vfield = 
-                try Hashtbl.find obj.fields field 
-                with Not_found -> 
-                  try Hashtbl.find env field 
-                  with Not_found -> error ("Field not found: " ^ field) 
-              in
-              (* Si le champ est final et déjà initialisé, lever une erreur *)
-              if is_final && vfield <> Null then 
-                error ("Field is final: " ^ field);
-              (* Mise à jour de la valeur du champ dans les attributs d'instance *)
-              Hashtbl.replace obj.fields field v
-          | _ -> 
-              error "Field assignment on non-object or unsupported expression"*)
+      let v = eval_expr e env this in
+      (match eval_expr obj_expr env this with
+      | VObj obj -> 
+          let cls = find_class obj.cls p.classes in
+          let is_final = find_field_is_final cls field in
+        
+          
+          if not (List.exists (fun (sfield, test) -> (sfield = field) && (test)) cls.static_attribut) then
+          let vfield = 
+            (try Hashtbl.find obj.fields field
+              with Not_found -> try Hashtbl.find env field
+                                with Not_found -> (*Hashtbl.iter (fun x y -> Printf.printf "Hello %s" x ) obj.fields;*) error ("Hna Field not found: " ^ field))
+          in
+          if is_final && vfield <> Null then error ("Field is final: " ^ field);
+            (* Mise à jour du champ d'instance *)
+            Hashtbl.replace obj.fields field v 
+          else
+            (* Mise à jour du champ statique *)
+            let cname = obj.cls in
+            (match Hashtbl.find_opt static_fields cname with
+            | Some class_static_fields ->
+                (* Champ statique déjà initialisé pour cette classe *)
+                Hashtbl.replace class_static_fields field v
+            | None ->
+                (* Impossible, champs statiques non initialisés *)
+                error ("Static fields not initialized for class: " ^ cname)
+            )
+      | _ -> error "Field assignment on non-object")
     | If (cond, then_seq, else_seq) ->
         (match eval_expr cond env this super with
          | VBool true -> exec_seq then_seq env this super

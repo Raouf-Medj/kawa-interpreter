@@ -28,28 +28,25 @@
 
  (* Expressions *)
  type expr =
-   (* Base arithmétique *)
-   | Int    of int
-   | Bool   of bool
-   | Unop   of unop * expr
-   | Binop  of binop * expr * expr
-   (* Accès à une variable ou un attribut *)
-   | Get      of mem_access
-   (* Objet courant *)
-   | This
-   (* Classe parent *)
-   | Super
-   (* Classe parent *)
+  (* Base arithmétique *)
+  | Int    of int
+  | Bool   of bool
+  | Unop   of unop * expr
+  | Binop  of binop * expr * expr
+  (* Accès à une variable ou un attribut *)
+  | Get      of mem_access
+  (* Objet courant *)
+  | This
+  (* Classe parent *)
   | Super
   (* Création d'un nouvel objet *)
-   | New      of string
-   | NewCstr  of string * expr list
-   (*Check si c'est une instance*)
+  | New      of string
+  | NewCstr  of string * expr list
+  (*Check si c'est une instance*)
   | InstanceOf of expr * string
   (* Appel de méthode *)
-   | MethCall of expr * string * expr list
-   | InstanceOf of expr * string
-   | EArrayCreate of typ * expr list  (* Création d'un tableau : type et taille *)
+  | MethCall of expr * string * expr list
+  | EArrayCreate of typ * expr list  (* Création d'un tableau : type et taille *)
 
  (* Accès mémoire : variable ou attribut d'un objet *)
  and mem_access =
@@ -102,7 +99,6 @@
      parent: string option;
      is_attr_final: (string * bool) list;
      static_attribut : (string * bool) list;
-     is_attr_final: (string * bool) list;
   }
  
  (* Programme complet : variables globales, classes, et une séquence 
