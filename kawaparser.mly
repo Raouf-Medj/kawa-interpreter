@@ -54,8 +54,11 @@ program:
             else if Hashtbl.mem tbl x then true
             else (Hashtbl.add tbl x (); false)
           ) false lst in
-        if has_duplicates (List.map fst glb) then failwith "Duplicate variable declaration"
-        else glb); 
+        if has_duplicates (List.map (fun (id, _, _) -> id) glb) then failwith "Duplicate variable declaration"
+        else List.map (fun (id, ty, _) -> (id, ty)) glb); 
+      globals_init_vals = 
+        (let glb = List.fold_left (fun acc l -> acc @ l) [] vrs in
+        List.map (fun (id, _, init) -> (id, init)) glb);
       main
     } }
 ;
@@ -65,30 +68,38 @@ class_def:
     {
       class_name = $2; (* Nom de la classe *)
       parent = $3; (* Classe parent, si elle existe *)
-      attributes = List.map (fun (id, typ, _, _) -> (id, typ)) $5; (* Liste des attributs *)
+      attributes = List.map (fun (id, typ, _, _, _) -> (id, typ)) $5; (* Liste des attributs *)
       methods = $6; (* Liste des méthodes *)
-      is_attr_final = List.map (fun (id, _, is_final, _) -> (id, is_final)) $5; (* Finalité des attributs *)
-      static_attribut = List.map (fun (id, _, _, is_static) -> (id, is_static)) $5; (* Attributs statiques *)
+      is_attr_final = List.map (fun (id, _, is_final, _, _) -> (id, is_final)) $5; (* Finalité des attributs *)
+      static_attribut = List.map (fun (id, _, _, is_static, _) -> (id, is_static)) $5; (* Attributs statiques *)
+      attr_init_vals = List.map (fun (id, _, _, _, init) -> (id, init)) $5; (* Valeurs initiales des attributs *)
     }
   }
 ;
 
-
 var_decl:
-| VAR typpc separated_nonempty_list(COMMA, IDENT) SEMI { List.map (fun ident -> (ident, $2)) $3 }
+| VAR typpc separated_nonempty_list(COMMA, ident_init) SEMI { List.map (fun (ident, init) -> (ident, $2, init)) $3 }
 ;
 
 attr_decl:
-| ATTR typpc IDENT SEMI { ($3, $2, false, false) }
-| ATTR FINAL typpc IDENT SEMI { ($4, $3, true, false) }
-| ATTR STATIC typpc IDENT SEMI { ($4, $3, false, true) }
-| ATTR STATIC FINAL typpc IDENT SEMI | ATTR FINAL STATIC typp IDENT SEMI { ($5, $4, true, true) }
-
+| ATTR typpc IDENT init SEMI { ($3, $2, false, false, $4) }
+| ATTR FINAL typpc IDENT init SEMI { ($4, $3, true, false, $5) }
+| ATTR STATIC typpc IDENT init SEMI { ($4, $3, false, true, $5) }
+| ATTR STATIC FINAL typpc IDENT init SEMI | ATTR FINAL STATIC typp IDENT init SEMI { ($5, $4, true, true, $6) }
 ;
 
+init:
+| SET expr { Some($2) }
+| (* empty *) { None }
+;
+
+ident_init:
+| IDENT { ($1, None) }  (* IDENT without initialization *)
+| IDENT ASSIGN expr { ($1, Some($3)) }  (* IDENT with initialization *)
+;
 
 param_decl:
-| typpc IDENT init{ ($2, $1, $3) }
+| typpc IDENT { ($2, $1) }
 ;
 
 method_def:
@@ -105,8 +116,11 @@ method_def:
           else if Hashtbl.mem tbl x then true
           else (Hashtbl.add tbl x (); false)
         ) false lst in
-      if has_duplicates (List.map fst loc) then failwith "Duplicate variable declaration"
-      else loc);
+      if has_duplicates (List.map (fun (id, _, _) -> id) loc) then failwith "Duplicate variable declaration"
+        else List.map (fun (id, ty, _) -> (id, ty)) loc); 
+      locals_init_vals =
+        (let loc = List.fold_left (fun acc l -> acc @ l) [] locs in
+        List.map (fun (id, _, init) -> (id, init)) loc);
     return = tp;
   } }
 ;

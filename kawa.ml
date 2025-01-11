@@ -81,6 +81,7 @@
      code: seq;
      params: (string * typ) list;
      locals: (string * typ) list;
+     locals_init_vals: (string * expr option) list;
      return: typ;
    }
          
@@ -99,6 +100,7 @@
      parent: string option;
      is_attr_final: (string * bool) list;
      static_attribut : (string * bool) list;
+     attr_init_vals: (string * expr option) list;
   }
  
  (* Programme complet : variables globales, classes, et une séquence 
@@ -106,6 +108,7 @@
  type program = {
      classes: class_def list;
      globals: (string * typ) list;
+     globals_init_vals: (string * expr option) list;
      main: seq;
    }
  
