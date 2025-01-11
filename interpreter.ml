@@ -195,7 +195,7 @@ let rec exec_prog (p: program): unit =
     
        
 
-  and eval_binop op v1 v2 =
+    and eval_binop op v1 v2 =
     match op, v1, v2 with
     | Add, VInt n1, VInt n2 -> VInt (n1 + n2)
     | Sub, VInt n1, VInt n2 -> VInt (n1 - n2)
@@ -210,7 +210,29 @@ let rec exec_prog (p: program): unit =
     | Neq, v1, v2 -> VBool (v1 <> v2)
     | And, VBool b1, VBool b2 -> VBool (b1 && b2)
     | Or, VBool b1, VBool b2 -> VBool (b1 || b2)
+    | Structeg, v1, v2 -> VBool (structural_eq v1 v2)
+    | Structineg, v1, v2 -> VBool (not (structural_eq v1 v2))
     | _ -> error "Invalid binary operation or operand types"
+
+  (* Fonction pour l'égalité structurelle *)
+  and structural_eq v1 v2 =
+    match v1, v2 with
+    | VInt n1, VInt n2 -> n1 = n2
+    | VBool b1, VBool b2 -> b1 = b2
+    | VObj o1, VObj o2 ->
+        o1.cls = o2.cls &&
+        (* Comparer les champs des deux objets *)
+        Hashtbl.fold (fun field_name field_value acc ->
+          acc && 
+          (try structural_eq field_value (Hashtbl.find o2.fields field_name)
+           with Not_found -> false)
+        ) o1.fields true
+    | VArray arr1, VArray arr2 ->
+        Array.length arr1 = Array.length arr2 &&
+        Array.for_all2 structural_eq arr1 arr2
+    | Null, Null -> true
+    | _, _ -> false  (* Types différents ou valeurs non compatibles *)
+
 
   and call_method obj mname args env this =
     let cls = find_class obj.cls p.classes in
