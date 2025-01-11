@@ -17,6 +17,7 @@
 %token EQ NEQ LT LE GT GE
 %token PRINT
 %token EOF
+%token FINAL
 
 // %right SET
 %left OR
@@ -42,9 +43,10 @@ program:
 class_def:
 | CLASS IDENT opt_parent BEGIN list(attr_decl) list(method_def) END { { 
     class_name = $2;
-    attributes = $5;
+    attributes = List.map (fun (id, typ, _) -> (id, typ)) $5;
     methods = $6;
     parent = $3;
+    is_attr_final = List.map (fun (id, _, is_final) -> (id, is_final)) $5;
   } }
 ;
 
@@ -53,7 +55,8 @@ var_decl:
 ;
 
 attr_decl:
-| ATTR typp IDENT SEMI { ($3, $2) }
+| ATTR typp IDENT SEMI { ($3, $2, false) }
+| ATTR FINAL typp IDENT SEMI { ($4, $3, true) }
 ;
 
 param_decl:

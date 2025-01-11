@@ -85,6 +85,7 @@ type class_def = {
     attributes: (string * typ) list;
     methods: method_def list;
     parent: string option;
+    is_attr_final: (string * bool) list;
   }
 
 (* Programme complet : variables globales, classes, et une séquence 

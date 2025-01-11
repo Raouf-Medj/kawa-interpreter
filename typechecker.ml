@@ -67,7 +67,7 @@ let typecheck_prog p =
         (match type_expr e tenv with
         | TClass cname ->
             let cls = find_class p.classes cname in
-            find_field cls field
+            find_field_type cls field
         | ty -> type_error ty (TClass "object"))
     | This -> 
       (try Env.find "this" tenv with Not_found -> error ("Unbound 'this' in the current context"))
@@ -95,16 +95,25 @@ let typecheck_prog p =
             method_.return
         | ty -> type_error ty (TClass "object"))
   
-  and find_field cls field =
+  and find_field_type cls field =
     try List.assoc field cls.attributes
     with Not_found ->
       match cls.parent with
       | Some parent_name ->
           let parent_cls = find_class p.classes parent_name in
-          find_field parent_cls field
+          find_field_type parent_cls field
+      | None -> error ("Field not found: " ^ field)
+  
+  and find_field_is_final cls field =
+    try List.assoc field cls.is_attr_final
+    with Not_found ->
+      match cls.parent with
+      | Some parent_name ->
+          let parent_cls = find_class p.classes parent_name in
+          find_field_is_final parent_cls field
       | None -> error ("Field not found: " ^ field)
 
-  and check_instr i ret tenv = match i with
+  and check_instr i ret tenv mname = match i with
     | Print e -> (
       try check e TInt tenv 
       with exn ->
@@ -117,25 +126,27 @@ let typecheck_prog p =
         (match type_expr obj tenv with
         | TClass cname ->
             let cls = find_class p.classes cname in
-            let tfield = find_field cls field in
+            let tfield = find_field_type cls field in
+            let is_final_field = find_field_is_final cls field in
+            if (is_final_field && not (String.equal mname "constructor")) then error ("Field " ^ field ^ " is final");
             check e tfield tenv
         | ty -> type_error ty (TClass "object"))
     | If (cond, then_seq, else_seq) ->
         check cond TBool tenv;
-        check_seq then_seq ret tenv;
-        check_seq else_seq ret tenv
+        check_seq then_seq ret tenv mname;
+        check_seq else_seq ret tenv mname
     | While (cond, body) ->
         check cond TBool tenv;
-        check_seq body ret tenv
+        check_seq body ret tenv mname
     | Return e -> check e ret tenv
     | Expr e -> check e TVoid tenv
 
-  and check_seq s ret tenv =
-    List.iter (fun i -> check_instr i ret tenv) s
+  and check_seq s ret tenv mname =
+    List.iter (fun i -> check_instr i ret tenv mname) s
 
   and check_method cls method_ tenv =
     let method_env = add_env (method_.params @ method_.locals) tenv in
-    check_seq method_.code method_.return method_env
+    check_seq method_.code method_.return method_env method_.method_name
 
   and check_class cls tenv =
     let class_env = add_env cls.attributes tenv in
@@ -144,4 +155,4 @@ let typecheck_prog p =
 
   in
   List.iter (fun cls -> check_class cls tenv) p.classes;
-  check_seq p.main TVoid tenv
+  check_seq p.main TVoid tenv "main"

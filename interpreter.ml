@@ -20,11 +20,23 @@ let rec exec_prog (p: program): unit =
   (* Initialize global variables *)
   List.iter (fun (x, _) -> Hashtbl.add env x Null) p.globals;
 
+  let rec collect_attributes cls =
+    let parent_attributes = match cls.parent with
+      | Some parent_name ->
+          let parent_cls = 
+            (match List.find_opt (fun c -> c.class_name = parent_name) p.classes with
+            | Some cls -> cls
+            | None -> error ("Class not found: " ^ cls.class_name)) in
+          collect_attributes parent_cls
+      | None -> []
+    in
+    parent_attributes @ cls.attributes
+  in
   let create_object cname =
     match List.find_opt (fun c -> c.class_name = cname) p.classes with
     | Some cls ->
         let fields = Hashtbl.create 16 in
-        List.iter (fun (field, _) -> Hashtbl.add fields field Null) cls.attributes;
+        List.iter (fun (field, _) -> Hashtbl.add fields field Null) (collect_attributes cls);
         VObj { cls = cname; fields }
     | None -> error ("Class not found: " ^ cname)
   in
@@ -66,7 +78,7 @@ let rec exec_prog (p: program): unit =
         in
         let arg_values = List.map (fun a -> eval_expr a env this) args in
         let local_env = add_params_to_env constructor.params arg_values env in
-        ignore (exec_seq constructor.code local_env (Some (obj)));
+        exec_seq constructor.code local_env (Some (obj));
         obj
     | MethCall (obj_expr, mname, args) ->
         (match eval_expr obj_expr env this with
@@ -107,7 +119,16 @@ let rec exec_prog (p: program): unit =
   and exec_seq seq env this =
     try List.iter (fun instr -> exec_instr instr env this) seq
     with Return v -> raise (Return v)
-
+  
+  and find_field_is_final cls field =
+    try List.assoc field cls.is_attr_final
+    with Not_found ->
+      match cls.parent with
+      | Some parent_name ->
+          let parent_cls = find_class parent_name p.classes in
+          find_field_is_final parent_cls field
+      | None -> error ("Field not found: " ^ field)
+  
   and exec_instr i env this =
     match i with
     | Print e ->
@@ -122,7 +143,11 @@ let rec exec_prog (p: program): unit =
     | Set (Field (obj_expr, field), e) ->
         let v = eval_expr e env this in
         (match eval_expr obj_expr env this with
-         | VObj obj -> Hashtbl.replace obj.fields field v
+         | VObj obj -> 
+        let is_final = (let cls = find_class obj.cls p.classes in find_field_is_final cls field) in
+        let vfield = (try Hashtbl.find obj.fields field with Not_found -> try Hashtbl.find env field with Not_found -> error ("Field not found: " ^ field)) in
+        if (is_final && vfield <> Null) then error ("Field is final: " ^ field);
+          Hashtbl.replace obj.fields field v
          | _ -> error "Field assignment on non-object")
     | If (cond, then_seq, else_seq) ->
         (match eval_expr cond env this with
@@ -151,4 +176,4 @@ let rec exec_prog (p: program): unit =
     local_env
 
   in
-  ignore (exec_seq p.main env None)
+  exec_seq p.main env None
