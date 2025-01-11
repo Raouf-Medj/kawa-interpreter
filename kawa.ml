@@ -23,7 +23,8 @@ let rec typ_to_string = function
 type unop  = Opp | Not
 type binop = Add | Sub | Mul | Div | Rem
            | Lt  | Le  | Gt | Ge | Eq  | Neq
-           | And | Or
+           | And | Or 
+           | Structeg |Structineg
 
 (* Expressions *)
 type expr =
