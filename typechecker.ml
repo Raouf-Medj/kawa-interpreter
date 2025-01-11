@@ -94,6 +94,11 @@ let typecheck_prog p =
             List.iter2 (fun (_, param_type) arg -> check arg param_type tenv) method_.params args;
             method_.return
         | ty -> type_error ty (TClass "object"))
+    | InstanceOf (e, cname) ->
+      (let _ = find_class p.classes cname in
+      match type_expr e tenv with
+      | TClass ty -> TBool
+      | ty -> type_error ty (TClass "object"))
   
   and find_field_type cls field =
     try List.assoc field cls.attributes

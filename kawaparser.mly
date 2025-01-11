@@ -18,12 +18,13 @@
 %token PRINT
 %token EOF
 %token FINAL
+%token INSTANCEOF
 
 // %right SET
 %left OR
 %left AND
 %left EQ NEQ
-%left LT LE GT GE
+%left LT LE GT GE INSTANCEOF
 %left ADD SUB
 %left MUL DIV REM
 %right NEG
@@ -137,6 +138,7 @@ expr:
 | expr NEQ expr { Binop(Neq, $1, $3) }
 | expr AND expr { Binop(And, $1, $3) }
 | expr OR expr { Binop(Or, $1, $3) }
+| expr INSTANCEOF IDENT { InstanceOf($1, $3) }
 | SUB expr %prec NEG { Unop(Opp, $2) }
 | NOT expr { Unop(Not, $2) }
 | LPAR expr RPAR { $2 }

@@ -84,6 +84,18 @@ let rec exec_prog (p: program): unit =
         (match eval_expr obj_expr env this with
          | VObj obj -> call_method obj mname args env this
          | _ -> error "Method call on non-object")
+    | InstanceOf (e, cname) -> 
+        (match eval_expr e env this with
+         | VObj obj -> VBool (class_incluse p.classes obj.cls cname)
+         | _ -> error "Instanceof on non-object")
+
+  and class_incluse classes cname1 cname2 =
+    if cname1 = cname2 then true
+    else
+      let cls = find_class cname1 classes in
+      match cls.parent with
+      | Some parent -> class_incluse classes parent cname2
+      | None -> false
 
   and eval_binop op v1 v2 =
     match op, v1, v2 with

@@ -19,7 +19,7 @@ let typ_to_string = function
 type unop  = Opp | Not
 type binop = Add | Sub | Mul | Div | Rem
            | Lt  | Le  | Gt | Ge | Eq  | Neq
-           | And | Or
+           | And | Or 
 
 (* Expressions *)
 type expr =
@@ -37,6 +37,7 @@ type expr =
   | NewCstr  of string * expr list
   (* Appel de méthode *)
   | MethCall of expr * string * expr list
+  | InstanceOf of expr * string
 
 (* Accès mémoire : variable ou attribut d'un objet *)
 and mem_access =
