@@ -21,7 +21,7 @@
 %token TRUE FALSE
 %token IF ELSE WHILE RETURN
 %token ADD DIV SUB MUL REM OR AND NOT INSTANCEOF
-%token EQ NEQ LT LE GT GE
+%token EQ NEQ LT LE GT GE STRUCTEG STRUCTINEG
 %token PRINT
 %token EOF
 
@@ -30,6 +30,7 @@
 %left OR
 %left AND
 %left EQ NEQ
+%left STRUCTEG STRUCTINEG
 %left INSTANCEOF
 %left LT LE GT GE
 %left ADD SUB
@@ -133,6 +134,8 @@ expr:
 | expr NEQ expr { Binop(Neq, $1, $3) }
 | expr AND expr { Binop(And, $1, $3) }
 | expr OR expr { Binop(Or, $1, $3) }
+| expr STRUCTEG expr { Binop(Structeg, $1, $3) }
+| expr STRUCTINEG expr { Binop(Structineg, $1, $3) }
 | SUB expr %prec NEG { Unop(Opp, $2) }
 | NOT expr { Unop(Not, $2) }
 | LPAR expr RPAR { $2 }
