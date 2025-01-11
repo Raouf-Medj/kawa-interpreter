@@ -1,7 +1,7 @@
 var int z=3;
-var int x, y =true;
+var int x, y =1;
 var bool t;
-var int[] a, b; 
+var int[] a, b = new int[5]; 
 
 main {
   //y= 2;
@@ -9,6 +9,8 @@ main {
   t=true;
   a = new int[3];
   //print(z);
-  print(x+y+z);
+  print(b[0]);
+  print(x);
+  print(y);
   print(t);
 }
