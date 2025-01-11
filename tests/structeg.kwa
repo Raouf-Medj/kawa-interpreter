@@ -1,0 +1,18 @@
+var point a ;
+var point b ;
+
+class point {
+  attribute int x;
+  attribute int y;
+}
+
+main {
+  a = new point;
+  b = new point;
+  a.x = 1;
+  a.y = 2;
+  b.x = 1;
+  b.y = 2;
+  print(a===b);
+  print(a=/=b);
+}

@@ -3,18 +3,21 @@
   open Lexing
   open Kawa
 
+  let rec tarray_maker d t= if(d=1) then TArray t else TArray (tarray_maker (d-1) t)  
+
 %}
+
 
 %token <int> INT
 %token <string> IDENT
 %token MAIN
-%token LPAR RPAR BEGIN END SEMI COMMA DOT SET
+%token LPAR RPAR BEGIN END SEMI COMMA DOT SET RBRACKET(* [ *) LBRACKET(* ] *)
 %token VAR ATTR METHOD CLASS NEW THIS EXTENDS
 %token TINT TBOOL TVOID
 %token TRUE FALSE
 %token IF ELSE WHILE RETURN
-%token ADD DIV SUB MUL REM OR AND NOT
-%token EQ NEQ LT LE GT GE
+%token ADD DIV SUB MUL REM OR AND NOT INSTANCEOF
+%token EQ NEQ LT LE GT GE STRUCTEG STRUCTINEG
 %token PRINT
 %token EOF
 %token FINAL INSTANCEOF SUPER
@@ -24,12 +27,14 @@
 %left OR
 %left AND
 %left EQ NEQ
+%left STRUCTEG STRUCTINEG
 %left LT LE GT GE INSTANCEOF
 %left ADD SUB
 %left MUL DIV REM
 %right NEG
 %right NOT
-%left DOT
+%left DOT 
+
 
 %start program
 %type <Kawa.program> program
@@ -56,7 +61,7 @@ program:
 ;
 
 class_def:
-| CLASS IDENT opt_parent BEGIN list(attr_decl) list(method_def) END { { 
+| CLASS IDENT opt_parent BEGIN attr=list(attr_decl) list(method_def) END { { 
     class_name = $2;
     attributes = List.map (fun (id, typ, _) -> (id, typ)) $5;
     methods = $6;
@@ -66,25 +71,25 @@ class_def:
 ;
 
 var_decl:
-| VAR typp separated_nonempty_list(COMMA, IDENT) SEMI { List.map (fun ident -> (ident, $2)) $3 }
+| VAR typpc separated_nonempty_list(COMMA, IDENT) SEMI { List.map (fun ident -> (ident, $2)) $3 }
 ;
 
 attr_decl:
-| ATTR typp IDENT SEMI { ($3, $2, false) }
-| ATTR FINAL typp IDENT SEMI { ($4, $3, true) }
+| ATTR typpc IDENT SEMI { ($3, $2, false) }
+| ATTR FINAL typpc IDENT SEMI { ($4, $3, true) }
 ;
 
 param_decl:
-| typp IDENT { ($2, $1) }
+| typpc IDENT { ($2, $1) }
 ;
 
 method_def:
-| METHOD tp=typp id=IDENT LPAR param_lst=separated_list(COMMA, param_decl) RPAR BEGIN locs=list(var_decl) sequence=list(instr) END { {
+| METHOD tp=typpc id=IDENT LPAR param_lst=separated_list(COMMA, param_decl) RPAR BEGIN locs=list(var_decl) sequence=list(instr) END { {
     method_name = id;
     code = sequence;
     params = param_lst;
     locals = 
-      (let glb = List.fold_left (fun acc l -> acc @ l) [] locs in
+      (let loc = List.fold_left (fun acc l -> acc @ l) [] locs in
       let has_duplicates lst =
         let tbl = Hashtbl.create (List.length lst) in
         List.fold_left (fun found x ->
@@ -93,7 +98,7 @@ method_def:
           else (Hashtbl.add tbl x (); false)
         ) false lst in
       if has_duplicates (List.map fst glb) then failwith "Duplicate variable declaration"
-      else glb);
+      else loc);
     return = tp;
   } }
 ;
@@ -109,6 +114,14 @@ typp:
 | TVOID { TVoid }
 | IDENT { TClass($1) }
 ;
+
+typpc: 
+| t= typp {t}
+| t= typp d=nonempty_list(bracket_pair) { tarray_maker (List.length d) t}
+;
+
+%inline bracket_pair :
+| LBRACKET RBRACKET { 0 }
 
 instr:
 | PRINT LPAR e=expr RPAR SEMI { Print(e) }
@@ -140,16 +153,26 @@ expr:
 | expr AND expr { Binop(And, $1, $3) }
 | expr OR expr { Binop(Or, $1, $3) }
 | expr INSTANCEOF IDENT { InstanceOf($1, $3) }
+| expr STRUCTEG expr { Binop(Structeg, $1, $3) }
+| expr STRUCTINEG expr { Binop(Structineg, $1, $3) }
 | SUB expr %prec NEG { Unop(Opp, $2) }
 | NOT expr { Unop(Not, $2) }
 | LPAR expr RPAR { $2 }
 | NEW IDENT { New($2) }
 | NEW IDENT LPAR separated_list(COMMA, expr) RPAR { NewCstr($2, $4) }
 | expr DOT IDENT LPAR separated_list(COMMA, expr) RPAR { MethCall($1, $3, $5) }
+| NEW typp nonempty_list(list_array) { EArrayCreate($2, $3) }
+| e = expr INSTANCEOF LPAR i = IDENT RPAR {InstanceOf(e , i)}
+
+
 ;
+%inline list_array : 
+| LBRACKET expr RBRACKET {$2}
 
 mem:
 | IDENT { Var($1) }
 | expr DOT IDENT { Field($1, $3) }
+| IDENT nonempty_list(list_array) {ArrayAccess($1, $2)}
+
 ;
 

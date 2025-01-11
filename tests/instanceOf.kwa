@@ -1,0 +1,54 @@
+var int globalvar;
+var animal a;
+var bird b;
+var cat c;
+var dog d;
+
+// déclaration des classes
+class animal {
+  attribute int age;
+}
+
+class dog extends animal {
+  attribute bool istrained;
+}
+
+class cat extends animal {
+  attribute bool isfriendly;
+}
+
+class bird {
+  attribute int wingspan;
+}
+
+// variables globales
+
+
+// point d'entrée du programme principal
+main {
+  // création d'instances de classes
+  a = new animal;
+  d = new dog;
+  c = new cat;
+  b = new bird;
+
+  // test avec `instanceof`
+  print (a instanceOf(animal)); // true
+  print (d instanceOf(animal)); // true
+  print (c instanceOf(animal)); // true
+  print (b instanceOf(animal)); // false
+  print (d instanceOf(dog));    // true
+  print (d instanceOf(cat));    // false  
+  // test avec une variable de type `animal` contenant un `dog`
+  
+  // modifications des champs et vérification des valeurs
+  a.age = 5;
+  d.age = 3;
+  d.istrained = true;
+  c.isfriendly = false;
+
+  print (a.age);        // 5
+  print (d.age);        // 3
+  print (d.istrained);  // true
+  print (c.isfriendly); // false
+}

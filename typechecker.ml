@@ -1,6 +1,10 @@
+
 open Kawa
 
 exception Error of string
+exception ArrayError of string
+exception VarNotFound of string
+
 let error s = raise (Error s)
 let type_error ty_actual ty_expected =
   error (Printf.sprintf "expected %s, got %s"
@@ -9,8 +13,15 @@ let type_error ty_actual ty_expected =
 module Env = Map.Make(String)
 type tenv = typ Env.t
 
+let check_eq_type expected actual =
+  if expected <> actual then type_error  actual expected
+let rec get_array_core_type = function
+  | TArray t -> get_array_core_type t
+  | t -> t
+
 let add_env l tenv =
-  List.fold_left (fun env (x, t) -> Env.add x t env) tenv l
+    List.fold_left (fun env (x, t) -> Env.add x t env) tenv l
+
 let typecheck_prog p =
   let tenv = add_env p.globals Env.empty in
 
@@ -24,20 +35,8 @@ let typecheck_prog p =
 
   and check e typ tenv =
     let typ_e = type_expr e tenv in
-    match typ_e, typ with
-    | TClass cls1, TClass cls2 -> 
-      if not (class_incluse p.classes cls1 cls2) 
-        then error ("Class " ^ cls1 ^ " is not a subclass of " ^ cls2)
-    | _ -> if typ_e <> typ then type_error typ_e typ
+    if typ_e <> typ then type_error typ_e typ
 
-  and class_incluse classes cname1 cname2 =
-    if cname1 = cname2 then true
-    else
-      let cls = find_class classes cname1 in
-      match cls.parent with
-      | Some parent -> class_incluse classes parent cname2
-      | None -> false
-  
   and type_expr e tenv = match e with
     | Int _  -> TInt
     | Bool _ -> TBool
@@ -50,19 +49,17 @@ let typecheck_prog p =
         | TBool -> TBool
         | ty -> type_error ty TBool)
     | Binop (op, e1, e2) ->
-      (match op with
-      | Add | Sub | Mul | Div | Rem ->
-          check e1 TInt tenv; check e2 TInt tenv; TInt
-      | Lt | Le | Gt | Ge ->
-          check e1 TInt tenv; check e2 TInt tenv; TBool
-      | Eq | Neq ->
-          let t1 = type_expr e1 tenv in
-          let t2 = type_expr e2 tenv in
-          if t1 <> t2 then type_error t2 t1;
-          TBool
-      | And | Or ->
-          check e1 TBool tenv; check e2 TBool tenv; TBool)
-    | Get (Var x) -> (try Env.find x tenv with Not_found -> error ("Variable not found: " ^ x))
+        (match op, type_expr e1 tenv, type_expr e2 tenv with
+        | (Add | Sub | Mul | Div | Rem), TInt, TInt -> TInt
+        | (Lt | Le | Gt | Ge), TInt, TInt -> TBool
+        | (Eq | Neq), t1, t2 when t1 = t2 -> TBool
+        | (And | Or), TBool, TBool -> TBool
+        | (Structeg| Structineg),t1, t2 when t1=t2 -> TBool
+        | _ -> error "Invalid binary operation or operand types")
+    
+    | Get m -> type_mem_access m tenv
+
+    (*| Get (Var x) -> (try Env.find x tenv with Not_found -> error ("Variable not found: " ^ x))
     | Get (Field (e, field)) ->
         (match type_expr e tenv with
         | TClass cname ->
@@ -84,7 +81,12 @@ let typecheck_prog p =
         in
         if List.length cstr_params <> List.length args then
           error "Constructor argument count mismatch";
-        List.iter2 (fun param_type arg -> check arg param_type tenv) cstr_params args;
+        List.iter2
+          (fun param_type arg ->
+            let arg_type = type_expr arg tenv in
+            if param_type <> arg_type then
+              type_error arg_type param_type)
+          cstr_params args;
         TClass cname
     | MethCall (obj, mname, args) ->
         (match type_expr obj tenv with
@@ -94,7 +96,12 @@ let typecheck_prog p =
             let method_ = find_method cls mname in
             if List.length method_.params <> List.length args then
               error "Method argument count mismatch";
-            List.iter2 (fun (_, param_type) arg -> check arg param_type tenv) method_.params args;
+            List.iter2
+              (fun (_, param_type) arg ->
+                let arg_type = type_expr arg tenv in
+                if param_type <> arg_type then
+                  type_error arg_type param_type)
+              method_.params args;
             method_.return
         | ty -> type_error ty (TClass "object"))
     | InstanceOf (e, cname) ->
@@ -128,9 +135,16 @@ let typecheck_prog p =
         try check e TBool tenv
         with exn -> check e TVoid tenv)
     | Set (Var x, e) ->
-        let tvar = Env.find x tenv in
-        check e tvar tenv
-    | Set (Field (obj, field), e) ->
+      let tvar = Env.find x tenv in
+      let texpr = type_expr e tenv in
+      if texpr <> tvar then
+        match tvar, texpr with
+        | TClass parent, TClass child when is_subtype child parent -> ()
+        | _ -> type_error texpr tvar
+      else
+        ()
+
+    (*| Set (Field (obj, field), e) ->
         (match type_expr obj tenv with
         | TClass cname ->
             let cls = find_class p.classes cname in
@@ -147,7 +161,7 @@ let typecheck_prog p =
         check cond TBool tenv;
         check_seq body ret tenv mname
     | Return e -> check e ret tenv
-    | Expr e -> check e TVoid tenv
+    | Expr e -> ignore (type_expr e tenv)
 
   and check_seq s ret tenv mname =
     List.iter (fun i -> check_instr i ret tenv mname) s
