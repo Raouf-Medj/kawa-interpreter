@@ -27,6 +27,9 @@
         "void",       TVOID;
         "extends",    EXTENDS;
         "final",     FINAL;
+        "public",    PUBLIC;
+        "private",   PRIVATE;
+        "protected", PROTECTED;
       ] ;
     fun s ->
       try  Hashtbl.find h s

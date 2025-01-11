@@ -35,9 +35,9 @@ let rec exec_prog (p: program): unit =
   let create_object cname =
     match List.find_opt (fun c -> c.class_name = cname) p.classes with
     | Some cls ->
-        let fields = Hashtbl.create 16 in
-        List.iter (fun (field, _) -> Hashtbl.add fields field Null) (collect_attributes cls);
-        VObj { cls = cname; fields }
+      let fields = Hashtbl.create 16 in
+      List.iter (fun (field, _) -> Hashtbl.add fields field Null) (collect_attributes cls);
+      VObj { cls = cname; fields }
     | None -> error ("Class not found: " ^ cname)
   in
   let rec eval_expr e env this =

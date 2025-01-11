@@ -18,6 +18,7 @@
 %token PRINT
 %token EOF
 %token FINAL
+%token PUBLIC PRIVATE PROTECTED
 
 // %right SET
 %left OR
@@ -43,10 +44,11 @@ program:
 class_def:
 | CLASS IDENT opt_parent BEGIN list(attr_decl) list(method_def) END { { 
     class_name = $2;
-    attributes = List.map (fun (id, typ, _) -> (id, typ)) $5;
+    attributes = List.map (fun (id, typ, _, _) -> (id, typ)) $5;
     methods = $6;
     parent = $3;
-    is_attr_final = List.map (fun (id, _, is_final) -> (id, is_final)) $5;
+    is_attr_final = List.map (fun (id, _, is_final, _) -> (id, is_final)) $5;
+    attr_visibility = List.map (fun (id, _, _, vis) -> (id, vis)) $5;
   } }
 ;
 
@@ -55,8 +57,14 @@ var_decl:
 ;
 
 attr_decl:
-| ATTR typp IDENT SEMI { ($3, $2, false) }
-| ATTR FINAL typp IDENT SEMI { ($4, $3, true) }
+| ATTR typp IDENT SEMI { ($3, $2, false, 0) }
+| ATTR FINAL typp IDENT SEMI { ($4, $3, true, 0) }
+| ATTR PUBLIC typp IDENT SEMI { ($4, $3, false, 0) }
+| ATTR PUBLIC FINAL typp IDENT SEMI { ($5, $4, true, 0) }
+| ATTR PROTECTED typp IDENT SEMI { ($4, $3, false, 1) }
+| ATTR PROTECTED FINAL typp IDENT SEMI { ($5, $4, true, 1) }
+| ATTR PRIVATE typp IDENT SEMI { ($4, $3, false, 2) }
+| ATTR PRIVATE FINAL typp IDENT SEMI { ($5, $4, true, 2) }
 ;
 
 param_decl:
