@@ -53,16 +53,18 @@ let create_object cname =
   match List.find_opt (fun c -> c.class_name = cname) p.classes with
   | Some cls ->
       (* Initialisation des attributs statiques si ce n'est pas encore fait *)
+      (**********************)
       init_static_fields cls;
       (* Création des attributs d'instance *)
       let fields = Hashtbl.create 16 in
       List.iter 
         (fun (field, _) -> 
-          if not (List.exists (fun (sfield, _) -> sfield = field) cls.static_attribut)
-          then Hashtbl.add fields field Null
+          if not (List.exists (fun (sfield, test) -> (sfield = field) && (test)) cls.static_attribut)
+          then begin Hashtbl.add fields field Null end
         )
         (collect_attributes cls);
-      VObj { cls = cname; fields }
+
+      VObj { cls = cname; fields = fields }
   | None -> error ("Class not found: " ^ cname)
 
 
@@ -86,15 +88,11 @@ let create_object cname =
     | Get (Var x) ->
         (try Hashtbl.find env x
          with Not_found -> error ("Variable not found: " ^ x))
-    | Get (Field (e, field)) ->
-        (match eval_expr e env this with
-         | VObj o -> (try Hashtbl.find o.fields field
-                      with Not_found -> error ("Field not found: " ^ field))
-         | _ -> error "Field access on non-object")
+
     | This -> (match this with
                | Some obj -> obj
                | None -> error "Unbound 'this' in the current context")
-    | New cname -> create_object cname
+    | New cname ->  create_object cname
     | NewCstr (cname, args) ->
         let obj = create_object cname in
         let cls = find_class cname p.classes in
@@ -111,6 +109,25 @@ let create_object cname =
         (match eval_expr obj_expr env this with
          | VObj obj -> call_method obj mname args env this
          | _ -> error "Method call on non-object")
+         | Get (Field (e, field)) ->
+          (match eval_expr e env this with
+           | VObj o ->
+               (try 
+                  (* Recherche dans les champs d'instance *)
+                  Hashtbl.find o.fields field
+                with Not_found -> 
+                  (* Si introuvable, rechercher dans les champs statiques *)
+                  let cname = o.cls in
+                  (match Hashtbl.find_opt static_fields cname with
+                   | Some class_static_fields ->
+                       (try 
+                          Hashtbl.find class_static_fields field
+                        with Not_found -> 
+                          error ("Field not found: " ^ field))
+                   | None ->
+                       error ("Static fields not initialized for class: " ^ cname)))
+           | _ -> error "Field access on non-object")
+      
     |_-> error " W9"
   and eval_binop op v1 v2 =
     match op, v1, v2 with
@@ -167,20 +184,21 @@ let create_object cname =
     | Set (Var x, e) ->
         let v = eval_expr e env this in
         Hashtbl.replace env x v
-        | Set (Field (obj_expr, field), e) ->
+    | Set (Field (obj_expr, field), e) ->
           let v = eval_expr e env this in
           (match eval_expr obj_expr env this with
            | VObj obj -> 
                let cls = find_class obj.cls p.classes in
                let is_final = find_field_is_final cls field in
-               let vfield = 
-                 (try Hashtbl.find obj.fields field
-                  with Not_found -> try Hashtbl.find env field
-                                    with Not_found -> error ("Field not found: " ^ field))
-               in
-               if is_final && vfield <> Null then error ("Field is final: " ^ field);
+              
                
-               if not (List.exists (fun (sfield, _) -> sfield = field) cls.static_attribut) then
+               if not (List.exists (fun (sfield, test) -> (sfield = field) && (test)) cls.static_attribut) then
+                let vfield = 
+                  (try Hashtbl.find obj.fields field
+                   with Not_found -> try Hashtbl.find env field
+                                     with Not_found -> (*Hashtbl.iter (fun x y -> Printf.printf "Hello %s" x ) obj.fields;*) error ("Hna Field not found: " ^ field))
+                in
+                if is_final && vfield <> Null then error ("Field is final: " ^ field);
                  (* Mise à jour du champ d'instance *)
                  Hashtbl.replace obj.fields field v 
                else
