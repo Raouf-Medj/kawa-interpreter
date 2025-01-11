@@ -25,7 +25,13 @@ TInt -> (VInt 0)
 | TBool -> (VBool false)
 | TVoid -> Null
 | TClass _ ->  Null
-|TArray t -> VArray (Array.make 0 (init_value t))   
+|TArray t -> VArray (Array.make 0 (init_value t)) 
+
+let extract_option = function
+  | Some value -> value  (* Retourne la valeur contenue dans l'option *)
+  | None -> Null  (* Lève une exception si l'option est vide *)
+
+
 let rec create_array dims t =
   match dims with
   | [] -> failwith "Dimensions list cannot be empty"
@@ -44,15 +50,12 @@ let error s = raise (Error s)
 
 
 let rec exec_prog (p: program): unit =
-  let env = Hashtbl.create 16 in
-  (* Initialize global variables *)
-  List.iter (fun (x, _) -> Hashtbl.add env x Null) p.globals;
 
   let create_object cname =
     match List.find_opt (fun c -> c.class_name = cname) p.classes with
     | Some cls ->
         let fields = Hashtbl.create 16 in
-        List.iter (fun (field, _) -> Hashtbl.add fields field Null) cls.attributes;
+        List.iter (fun (field, _, _) -> Hashtbl.add fields field Null) cls.attributes;
         VObj { cls = cname; fields }
     | None -> error ("Class not found: " ^ cname)
   in
@@ -195,7 +198,7 @@ let rec exec_prog (p: program): unit =
     
        
 
-  and eval_binop op v1 v2 =
+    and eval_binop op v1 v2 =
     match op, v1, v2 with
     | Add, VInt n1, VInt n2 -> VInt (n1 + n2)
     | Sub, VInt n1, VInt n2 -> VInt (n1 - n2)
@@ -210,7 +213,29 @@ let rec exec_prog (p: program): unit =
     | Neq, v1, v2 -> VBool (v1 <> v2)
     | And, VBool b1, VBool b2 -> VBool (b1 && b2)
     | Or, VBool b1, VBool b2 -> VBool (b1 || b2)
+    | Structeg, v1, v2 -> VBool (structural_eq v1 v2)
+    | Structineg, v1, v2 -> VBool (not (structural_eq v1 v2))
     | _ -> error "Invalid binary operation or operand types"
+
+  (* Fonction pour l'égalité structurelle *)
+  and structural_eq v1 v2 =
+    match v1, v2 with
+    | VInt n1, VInt n2 -> n1 = n2
+    | VBool b1, VBool b2 -> b1 = b2
+    | VObj o1, VObj o2 ->
+        o1.cls = o2.cls &&
+        (* Comparer les champs des deux objets *)
+        Hashtbl.fold (fun field_name field_value acc ->
+          acc && 
+          (try structural_eq field_value (Hashtbl.find o2.fields field_name)
+           with Not_found -> false)
+        ) o1.fields true
+    | VArray arr1, VArray arr2 ->
+        Array.length arr1 = Array.length arr2 &&
+        Array.for_all2 structural_eq arr1 arr2
+    | Null, Null -> true
+    | _, _ -> false  (* Types différents ou valeurs non compatibles *)
+
 
   and call_method obj mname args env this =
     let cls = find_class obj.cls p.classes in
@@ -314,10 +339,30 @@ let rec exec_prog (p: program): unit =
     | Some cls -> cls
     | None -> error ("Class not found: " ^ cname)
 
-  and add_params_to_env params args env =
-    let local_env = Hashtbl.copy env in
-    List.iter2 (fun (name, _) arg -> Hashtbl.add local_env name arg) params args;
-    local_env
-
+    (*and add_params_to_env params args env =
+      let local_env = Hashtbl.copy env in
+      List.iter2 
+        (fun (name, typ, init_opt) arg -> 
+           (* Si la valeur initiale est définie, on utilise `init_opt`, sinon on utilise `arg` *)
+           let value = match init_opt with
+             | Some init -> (eval_expr init env this)
+             | None -> arg
+           in
+           Hashtbl.add local_env name value
+        ) 
+        params args;
+      local_env*)
+   and add_params_to_env params args env =
+        let local_env = Hashtbl.copy env in
+        List.iter2 (fun (name, _, _) arg -> Hashtbl.add local_env name arg) params args;
+        local_env
+    
   in
+  let env = Hashtbl.create 16 in
+  (* Initialize global variables *)
+  List.iter (fun (x, _, init) ->
+    match init with 
+    | Some v -> Hashtbl.add env x (eval_expr v env None)
+    |None-> Hashtbl.add env x Null 
+  )p.globals;
   ignore (exec_seq p.main env None)
