@@ -71,6 +71,8 @@ let typecheck_prog p =
         | ty -> type_error ty (TClass "object"))
     | This -> 
       (try Env.find "this" tenv with Not_found -> error ("Unbound 'this' in the current context"))
+    | Super -> 
+      (try Env.find "super" tenv with Not_found -> error ("Unbound 'super' in the current context"))
     | New cname -> 
       let _ = find_class p.classes cname in TClass cname
     | NewCstr (cname, args) ->
@@ -87,6 +89,7 @@ let typecheck_prog p =
     | MethCall (obj, mname, args) ->
         (match type_expr obj tenv with
         | TClass cname ->
+            if cname = "void" then error "Class has no superclass";
             let cls = find_class p.classes cname in
             let method_ = find_method cls mname in
             if List.length method_.params <> List.length args then
@@ -156,7 +159,11 @@ let typecheck_prog p =
   and check_class cls tenv =
     let class_env = add_env cls.attributes tenv in
     let class_env_this = Env.add "this" (TClass(cls.class_name)) class_env in
-    List.iter (fun method_ -> check_method cls method_ class_env_this) cls.methods
+    let class_env_this_super = match cls.parent with 
+    | Some parent -> Env.add "super" (TClass(parent)) class_env_this 
+    | None -> Env.add "super" (TClass("void")) class_env_this 
+    in
+    List.iter (fun method_ -> check_method cls method_ class_env_this_super) cls.methods
 
   in
   List.iter (fun cls -> check_class cls tenv) p.classes;

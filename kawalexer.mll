@@ -28,6 +28,7 @@
         "extends",    EXTENDS;
         "final",      FINAL;
         "instanceof", INSTANCEOF;
+        "super",      SUPER;
       ] ;
     fun s ->
       try  Hashtbl.find h s

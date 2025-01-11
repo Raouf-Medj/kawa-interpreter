@@ -32,6 +32,8 @@ type expr =
   | Get      of mem_access
   (* Objet courant *)
   | This
+  (* Classe parent *)
+  | Super
   (* Création d'un nouvel objet *)
   | New      of string
   | NewCstr  of string * expr list

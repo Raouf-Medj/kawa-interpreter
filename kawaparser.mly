@@ -17,8 +17,8 @@
 %token EQ NEQ LT LE GT GE
 %token PRINT
 %token EOF
-%token FINAL
-%token INSTANCEOF
+%token FINAL INSTANCEOF SUPER
+
 
 // %right SET
 %left OR
@@ -124,6 +124,7 @@ expr:
 | TRUE { Bool(true) }
 | FALSE { Bool(false) }
 | THIS { This }
+| SUPER { Super }
 | mem { Get($1) }
 | expr ADD expr { Binop(Add, $1, $3) }
 | expr SUB expr { Binop(Sub, $1, $3) }
