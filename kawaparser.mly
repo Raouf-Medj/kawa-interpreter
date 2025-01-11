@@ -3,31 +3,37 @@
   open Lexing
   open Kawa
 
+  let rec tarray_maker d t= if(d=1) then TArray t else TArray (tarray_maker (d-1) t)  
+
 %}
+
 
 %token <int> INT
 %token <string> IDENT
 %token MAIN
-%token LPAR RPAR BEGIN END SEMI COMMA DOT SET
+%token LPAR RPAR BEGIN END SEMI COMMA DOT SET RBRACKET(* [ *) LBRACKET(* ] *)
 %token VAR ATTR METHOD CLASS NEW THIS EXTENDS
 %token TINT TBOOL TVOID
 %token TRUE FALSE
 %token IF ELSE WHILE RETURN
-%token ADD DIV SUB MUL REM OR AND NOT
+%token ADD DIV SUB MUL REM OR AND NOT INSTANCEOF
 %token EQ NEQ LT LE GT GE
 %token PRINT
 %token EOF
+
 
 // %right SET
 %left OR
 %left AND
 %left EQ NEQ
+%left INSTANCEOF
 %left LT LE GT GE
 %left ADD SUB
 %left MUL DIV REM
 %right NEG
 %right NOT
-%left DOT
+%left DOT 
+
 
 %start program
 %type <Kawa.program> program
@@ -49,19 +55,19 @@ class_def:
 ;
 
 var_decl:
-| VAR typp IDENT SEMI { ($3, $2) }
+| VAR typpc IDENT SEMI { ($3, $2) }
 ;
 
 attr_decl:
-| ATTR typp IDENT SEMI { ($3, $2) }
+| ATTR typpc IDENT SEMI { ($3, $2) }
 ;
 
 param_decl:
-| typp IDENT { ($2, $1) }
+| typpc IDENT { ($2, $1) }
 ;
 
 method_def:
-| METHOD tp=typp id=IDENT LPAR param_lst=separated_list(COMMA, param_decl) RPAR BEGIN locs=list(var_decl) sequence=list(instr) END { {
+| METHOD tp=typpc id=IDENT LPAR param_lst=separated_list(COMMA, param_decl) RPAR BEGIN locs=list(var_decl) sequence=list(instr) END { {
     method_name = id;
     code = sequence;
     params = param_lst;
@@ -81,6 +87,14 @@ typp:
 | TVOID { TVoid }
 | IDENT { TClass($1) }
 ;
+
+typpc: 
+| t= typp {t}
+| t= typp d=nonempty_list(bracket_pair) { tarray_maker (List.length d) t}
+;
+
+%inline bracket_pair :
+| LBRACKET RBRACKET { 0 }
 
 instr:
 | PRINT LPAR e=expr RPAR SEMI { Print(e) }
@@ -116,10 +130,18 @@ expr:
 | NEW IDENT { New($2) }
 | NEW IDENT LPAR separated_list(COMMA, expr) RPAR { NewCstr($2, $4) }
 | expr DOT IDENT LPAR separated_list(COMMA, expr) RPAR { MethCall($1, $3, $5) }
+| NEW typp nonempty_list(list_array) { EArrayCreate($2, $3) }
+| e = expr INSTANCEOF LPAR i = IDENT RPAR {InstanceOf(e , i)}
+
+
 ;
+%inline list_array : 
+| LBRACKET expr RBRACKET {$2}
 
 mem:
 | IDENT { Var($1) }
 | expr DOT IDENT { Field($1, $3) }
+| IDENT nonempty_list(list_array) {ArrayAccess($1, $2)}
+
 ;
 
