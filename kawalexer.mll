@@ -26,6 +26,7 @@
         "bool",       TBOOL;
         "void",       TVOID;
         "extends",    EXTENDS;
+        "instanceOf", INSTANCEOF;
       ] ;
     fun s ->
       try  Hashtbl.find h s
@@ -70,6 +71,8 @@ rule token = parse
   | "/"  { DIV }
   | "-"  { SUB }
   | "*"  { MUL }
+  | "[" { LBRACKET }
+  | "]" { RBRACKET }
   | _    { raise (Error ("unknown character : " ^ lexeme lexbuf)) }
   | eof  { EOF }
 
