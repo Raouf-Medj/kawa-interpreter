@@ -1,7 +1,11 @@
+
 open Kawa
 
-exception Error of string
-let error s = raise (Error s)
+exception TypeError of string
+exception ArrayError of string
+exception VarNotFound of string
+
+let error s = raise (TypeError s)
 let type_error ty_actual ty_expected =
   error (Printf.sprintf "expected %s, got %s"
            (typ_to_string ty_expected) (typ_to_string ty_actual))
@@ -9,11 +13,22 @@ let type_error ty_actual ty_expected =
 module Env = Map.Make(String)
 type tenv = typ Env.t
 
+let convert_to_pairs triplets =
+  List.map (fun (name, typ, _) -> (name, typ)) triplets
+
+
+let check_eq_type expected actual =
+  if expected <> actual then type_error  actual expected
+let rec get_array_core_type = function
+  | TArray t -> get_array_core_type t
+  | t -> t
+
 let add_env l tenv =
-  List.fold_left (fun env (x, t) -> Env.add x t env) tenv l
+    List.fold_left (fun env (x, t, _) -> Env.add x t env) tenv l
+
+    
 let typecheck_prog p =
   let tenv = add_env p.globals Env.empty in
-
   let rec find_class classes cname =
     try List.find (fun c -> c.class_name = cname) classes
     with Not_found -> error ("Class not found: " ^ cname)
@@ -100,12 +115,17 @@ let typecheck_prog p =
         let cls = find_class p.classes cname in
         let cstr_params =
           match List.find_opt (fun m -> m.method_name = "constructor") cls.methods with
-          | Some m -> List.map snd m.params
+          | Some m -> List.map snd (convert_to_pairs m.params)
           | None -> error ("Constructor not defined in class: " ^ cname)
         in
         if List.length cstr_params <> List.length args then
           error "Constructor argument count mismatch";
-        List.iter2 (fun param_type arg -> check arg param_type tenv) cstr_params args;
+        List.iter2
+          (fun param_type arg ->
+            let arg_type = type_expr arg tenv in
+            if param_type <> arg_type then
+              type_error arg_type param_type)
+          cstr_params args;
         TClass cname
     | MethCall (obj, mname, args) ->
         (match type_expr obj tenv with
@@ -115,7 +135,12 @@ let typecheck_prog p =
             let method_ = find_method cls mname in
             if List.length method_.params <> List.length args then
               error "Method argument count mismatch";
-            List.iter2 (fun (_, param_type) arg -> check arg param_type tenv) method_.params args;
+            List.iter2
+              (fun (_, param_type,_) arg ->
+                let arg_type = type_expr arg tenv in
+                if param_type <> arg_type then
+                  type_error arg_type param_type)
+              method_.params args;
             method_.return
         | ty -> type_error ty (TClass "object"))
     | InstanceOf (e, cname) ->
@@ -156,9 +181,16 @@ let typecheck_prog p =
         try check e TBool tenv
         with exn -> check e TVoid tenv)
     | Set (Var x, e) ->
-        let tvar = Env.find x tenv in
-        check e tvar tenv
-    | Set (Field (obj, field), e) ->
+      let tvar = Env.find x tenv in
+      let texpr = type_expr e tenv in
+      if texpr <> tvar then
+        match tvar, texpr with
+        | TClass parent, TClass child when is_subtype child parent -> ()
+        | _ -> type_error texpr tvar
+      else
+        ()
+
+    (*| Set (Field (obj, field), e) ->
         (match type_expr obj tenv with
         | TClass cname ->
             let cls = find_class p.classes cname in
@@ -184,7 +216,7 @@ let typecheck_prog p =
         check cond TBool tenv;
         check_seq body ret tenv mname
     | Return e -> check e ret tenv
-    | Expr e -> check e TVoid tenv
+    | Expr e -> ignore (type_expr e tenv)
 
   and check_seq s ret tenv mname =
     List.iter (fun i -> check_instr i ret tenv mname) s
@@ -202,6 +234,14 @@ let typecheck_prog p =
     in
     List.iter (fun method_ -> check_method cls method_ class_env_this_super) cls.methods
 
-  in
+  and check_initial_values l tenv =
+      List.iter (fun (x, t, init_opt) ->
+        match init_opt with
+        | Some init -> 
+            let t_init = type_expr init tenv in
+            if t <> t_init then type_error t_init t
+        | None -> ()) l
+    in
+  check_initial_values p.globals tenv;  
   List.iter (fun cls -> check_class cls tenv) p.classes;
   check_seq p.main TVoid tenv "main"

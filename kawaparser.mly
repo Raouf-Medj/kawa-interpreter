@@ -86,8 +86,9 @@ attr_decl:
 
 ;
 
+
 param_decl:
-| typpc IDENT { ($2, $1) }
+| typpc IDENT init{ ($2, $1, $3) }
 ;
 
 method_def:
@@ -175,6 +176,7 @@ expr:
 %inline list_array : 
 | LBRACKET expr RBRACKET {$2}
 
+;
 mem:
 | IDENT { Var($1) }
 | expr DOT IDENT { Field($1, $3) }

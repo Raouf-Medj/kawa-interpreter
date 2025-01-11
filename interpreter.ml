@@ -199,7 +199,7 @@ let rec exec_prog (p: program): unit =
       | Some parent -> class_incluse classes parent cname2
       | None -> false
 
-  and eval_binop op v1 v2 =
+    and eval_binop op v1 v2 =
     match op, v1, v2 with
     | Add, VInt n1, VInt n2 -> VInt (n1 + n2)
     | Sub, VInt n1, VInt n2 -> VInt (n1 - n2)
@@ -214,6 +214,8 @@ let rec exec_prog (p: program): unit =
     | Neq, v1, v2 -> VBool (v1 <> v2)
     | And, VBool b1, VBool b2 -> VBool (b1 && b2)
     | Or, VBool b1, VBool b2 -> VBool (b1 || b2)
+    | Structeg, v1, v2 -> VBool (structural_eq v1 v2)
+    | Structineg, v1, v2 -> VBool (not (structural_eq v1 v2))
     | Structeg, v1, v2 -> VBool (structural_eq v1 v2)
     | Structineg, v1, v2 -> VBool (not (structural_eq v1 v2))
     | _ -> error "Invalid binary operation or operand types"
@@ -366,10 +368,23 @@ let rec exec_prog (p: program): unit =
     | Some cls -> cls
     | None -> error ("Class not found: " ^ cname)
 
-  and add_params_to_env params args env =
-    let local_env = Hashtbl.copy env in
-    List.iter2 (fun (name, _) arg -> Hashtbl.add local_env name arg) params args;
-    local_env
-
+    (*and add_params_to_env params args env =
+      let local_env = Hashtbl.copy env in
+      List.iter2 
+        (fun (name, typ, init_opt) arg -> 
+           (* Si la valeur initiale est définie, on utilise `init_opt`, sinon on utilise `arg` *)
+           let value = match init_opt with
+             | Some init -> (eval_expr init env this)
+             | None -> arg
+           in
+           Hashtbl.add local_env name value
+        ) 
+        params args;
+      local_env*)
+   and add_params_to_env params args env =
+        let local_env = Hashtbl.copy env in
+        List.iter2 (fun (name, _, _) arg -> Hashtbl.add local_env name arg) params args;
+        local_env
+    
   in
   exec_seq p.main env None None
