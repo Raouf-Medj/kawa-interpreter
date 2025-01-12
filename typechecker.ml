@@ -6,6 +6,66 @@ let type_error ty_actual ty_expected =
   error (Printf.sprintf "expected %s, got %s"
            (typ_to_string ty_expected) (typ_to_string ty_actual))
 
+
+           (* Fonction pour calculer la distance de Levenshtein *)
+let levenshtein_distance s1 s2 =
+  let len1 = String.length s1 in
+  let len2 = String.length s2 in
+  let dp = Array.make_matrix (len1 + 1) (len2 + 1) 0 in
+
+  (* Initialisation des bords *)
+  for i = 0 to len1 do
+    dp.(i).(0) <- i
+  done;
+  for j = 0 to len2 do
+    dp.(0).(j) <- j
+  done;
+
+  (* Calcul de la distance *)
+  for i = 1 to len1 do
+    for j = 1 to len2 do
+      let cost = if s1.[i - 1] = s2.[j - 1] then 0 else 1 in
+      dp.(i).(j) <- min (min 
+                          (dp.(i - 1).(j) + 1)  (* Suppression *)
+                          (dp.(i).(j - 1) + 1)) (* Insertion *)
+                          (dp.(i - 1).(j - 1) + cost); (* Substitution *)
+    done;
+  done;
+
+  dp.(len1).(len2)
+
+(* Fonction principale pour trouver le mot le plus proche *)
+let closest_match target identifiers =
+  match identifiers with
+  | [] -> " "
+  | _ ->
+    let closest =
+      List.fold_left
+        (fun (best_name, best_distance) current ->
+           let distance = levenshtein_distance target current in
+           if distance < best_distance then (current, distance) else (best_name, best_distance))
+        ("", max_int) identifiers
+    in
+    match closest with
+    | (best_name, _) when best_name <> "" -> best_name
+    | _ -> " "
+
+(*let closest_lexicographically target identifiers =
+  match identifiers with
+  | [] -> failwith "The list of identifiers is empty"
+  | _ ->
+      List.fold_left (fun closest current ->
+        match closest with
+        | None -> Some current
+        | Some best ->
+            if abs (String.compare target current) < abs (String.compare target best)
+            then Some current
+            else closest
+      ) None identifiers
+      |> function
+      | Some result -> result
+      | None -> failwith " "*)
+
 module Env = Map.Make(String)
 type tenv = typ Env.t
 
@@ -16,11 +76,15 @@ let typecheck_prog p =
 
   let rec find_class classes cname =
     try List.find (fun c -> c.class_name = cname) classes
-    with Not_found -> error ("Class not found: " ^ cname)
+    with Not_found -> error ("Class not found: " ^ cname ^ 
+                            ", did you mean: " ^ 
+                            (closest_match cname (List.map (fun c -> c.class_name) classes)) ^ "?" )
 
   and find_method cls mname =
     try List.find (fun m -> m.method_name = mname) cls.methods
-    with Not_found -> error ("Method not found: " ^ mname)
+    with Not_found -> error ("Method not found: " ^ mname ^
+                            ", did you mean: " ^ 
+                            (closest_match mname (List.map (fun c -> c.method_name) cls.methods)) ^ "?" )
 
   and check e typ tenv =
     let typ_e = type_expr e tenv in
@@ -76,7 +140,7 @@ let typecheck_prog p =
           let t2 = type_expr e2 tenv in
           if t1 <> t2 then type_error t2 t1;
           TBool)
-    | Get (Var x) -> (try Env.find x tenv with Not_found -> error ("Undeclared variable: " ^ x))
+    (*| Get (Var x) -> (try Env.find x tenv with Not_found -> error ("Undeclared variable: " ^ x))
     | Get (Field (e, field)) ->
       (match type_expr e tenv with
       | TClass cname ->
@@ -89,7 +153,40 @@ let typecheck_prog p =
         try reduce_dim arr_type indices
         with Error msg -> error msg
       with Not_found ->
-        error ("Undeclared variable: "))
+        error ("Undeclared variable: "))*)
+        | Get (Var x) -> 
+          (try Env.find x tenv 
+           with Not_found -> 
+             let suggestions = 
+               closest_match x (List.map fst (Env.bindings tenv)) 
+             in
+             error ("Undeclared variable: " ^ x ^ 
+                    ", did you mean: " ^ suggestions ^ "?"))
+      | Get (Field (e, field)) -> 
+          (match type_expr e tenv with
+           | TClass cname -> 
+               let cls = find_class p.classes cname in
+               (try find_field_type cls field 
+                with Error _ ->
+                  let suggestions = 
+                    closest_match field 
+                    (List.map fst cls.attributes)
+                  in
+                  error ("Field not found: " ^ field ^ 
+                         ", did you mean: " ^ suggestions ^ "?"))
+           | ty -> type_error ty (TClass "object"))
+      | Get (ArrayAccess (name, indices)) -> 
+          (try 
+             let arr_type = Env.find name tenv in
+             try reduce_dim arr_type indices 
+             with Error msg -> error msg
+           with Not_found -> 
+             let suggestions = 
+               closest_match name (List.map fst (Env.bindings tenv)) 
+             in
+             error ("Undeclared variable: " ^ name ^ 
+                    ", did you mean: " ^ suggestions ^ "?"))
+  
     | This -> 
       (try Env.find "this" tenv with Not_found -> error ("Unbound 'this' in the current context"))
     | Super -> 
