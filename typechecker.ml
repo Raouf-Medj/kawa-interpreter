@@ -180,6 +180,9 @@ let typecheck_prog p =
         check cond TBool tenv;
         check_seq then_seq ret tenv mname;
         check_seq else_seq ret tenv mname
+    | UIf (cond, then_seq) ->
+        check cond TBool tenv;
+        check_seq then_seq ret tenv mname;
     | While (cond, body) ->
         check cond TBool tenv;
         check_seq body ret tenv mname
