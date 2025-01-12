@@ -149,6 +149,7 @@ instr:
 | PRINT LPAR e=expr RPAR SEMI { Print(e) }
 | mem SET expr SEMI { Set($1, $3) }
 | IF LPAR e=expr RPAR BEGIN b1=list(instr) END ELSE BEGIN b2=list(instr) END { If(e, b1, b2) }
+| IF LPAR e=expr RPAR BEGIN b1=list(instr) END  { UIf(e, b1) }
 | WHILE LPAR e=expr RPAR BEGIN b=list(instr) END { While(e, b) }
 | RETURN expr SEMI { Return($2) }
 | expr SEMI { Expr($1) }
