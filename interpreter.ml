@@ -18,8 +18,6 @@ let error s = raise (Error s)
 
 let rec exec_prog (p: program): unit =
   let env = Hashtbl.create 16 in
-  (* Initialize global variables *)
-  List.iter (fun (x, _) -> Hashtbl.add env x Null) p.globals;
 
   let rec collect_attributes cls =
     let parent_attributes = match cls.parent with
@@ -31,7 +29,17 @@ let rec exec_prog (p: program): unit =
           collect_attributes parent_cls
       | None -> []
     in
-    parent_attributes @ cls.attributes
+    parent_attributes @ (List.map2 (fun (id, ty) (id, init) -> (id, ty, init)) cls.attributes cls.attr_init_vals)
+  in
+  let default_value_for_type typ =
+    match typ with
+    | TInt -> VInt 0
+    | TBool -> VBool false
+    | TVoid -> Null
+    | TClass _ -> Null
+    | TArray inner_type -> 
+        (* Si c'est un tableau, on retourne une valeur par défaut du type de tableau intérieur *)
+        VArray (Array.make 0 Null)  (* Tableau vide pour des tableaux imbriqués *)
   in
   (* Table globale pour stocker les attributs statiques des classes *)
   let static_fields = Hashtbl.create 16
@@ -44,29 +52,10 @@ let rec exec_prog (p: program): unit =
         let fields = Hashtbl.create 16 in
         cls.static_attribut 
         |> List.iter (fun (field, is_static) -> 
-            if is_static then Hashtbl.add fields field Null);
+            if is_static then Hashtbl.add fields field (default_value_for_type (List.assoc field cls.attributes)));
         Hashtbl.add static_fields cls.class_name fields
     | Some _ -> () (* Ne rien faire si déjà initialisé *)
 
-  in
-  (* Fonction de création d'un objet d'instance *)
-  let create_object cname =
-    match List.find_opt (fun c -> c.class_name = cname) p.classes with
-    | Some cls ->
-        (* Initialisation des attributs statiques si ce n'est pas encore fait *)
-        (**********************)
-        init_static_fields cls;
-        (* Création des attributs d'instance *)
-        let fields = Hashtbl.create 16 in
-        List.iter 
-          (fun (field, _) -> 
-            if not (List.exists (fun (sfield, test) -> (sfield = field) && (test)) cls.static_attribut)
-            then begin Hashtbl.add fields field Null end
-          )
-          (collect_attributes cls);
-
-        VObj { cls = cname; fields = fields }
-    | None -> error ("Class not found: " ^ cname)
   in
   let rec eval_expr e env this super =
     match e with
@@ -112,16 +101,9 @@ let rec exec_prog (p: program): unit =
     | New cname -> create_object cname
     | NewCstr (cname, args) ->
         let obj = create_object cname in
-        let cls = find_class cname p.classes in
-        let constructor =
-          match List.find_opt (fun m -> m.method_name = "constructor") cls.methods with
-          | Some cstr -> cstr
-          | None -> error ("Constructor not found for class: " ^ cname)
-        in
-        let arg_values = List.map (fun a -> eval_expr a env this super) args in
-        let local_env = add_params_to_env constructor.params arg_values env in
-        exec_seq constructor.code local_env (Some (obj)) super;
-        obj
+        (match obj with
+        | VObj obj -> call_method obj "constructor" args env this super
+        | _ -> error "New object creation failed")
     | MethCall (obj_expr, mname, args) ->
         (match eval_expr obj_expr env this super with
          | VObj obj -> call_method obj mname args env this super
@@ -141,20 +123,7 @@ let rec exec_prog (p: program): unit =
             | VInt size when size <= 0 -> error "Array size must be positive"
             | _ -> error "Array dimensions must be integers"
           ) dims in
-          
-          (* Fonction pour obtenir la valeur par défaut pour le type *)
-          let default_value_for_type typ =
-            match typ with
-            | TInt -> VInt 0
-            | TBool -> VBool false
-            | TVoid -> Null
-            | TClass _ -> Null
-            | TArray inner_type -> 
-                (* Si c'est un tableau, on retourne une valeur par défaut du type de tableau intérieur *)
-                VArray (Array.make 0 Null)  (* Tableau vide pour des tableaux imbriqués *)
-            (*| _ -> error "Unsupported array element type"*)
-          in
-          
+                
           (* Fonction récursive pour créer un tableau multidimensionnel *)
           let rec create_nested_array sizes =
             match sizes with
@@ -191,6 +160,29 @@ let rec exec_prog (p: program): unit =
         access_nested_array array_val indices_values
       with Not_found -> error ("Array not found: " ^ array_name))
 
+  (* Fonction de création d'un objet d'instance *)
+  and create_object cname =
+    match List.find_opt (fun c -> c.class_name = cname) p.classes with
+    | Some cls ->
+        (* Initialisation des attributs statiques si ce n'est pas encore fait *)
+        init_static_fields cls;
+        (* Création des attributs d'instance *)
+        let fields = Hashtbl.create 16 in
+        List.iter 
+          (fun (field, ty, opt_init) ->
+            if (List.exists (fun (ffield, test) -> (ffield = field) && (test) && (opt_init == None)) cls.is_attr_final)
+              then Hashtbl.add fields field Null;
+            if not (List.exists (fun (sfield, test) -> (sfield = field) && (test)) cls.static_attribut) 
+              && not (List.exists (fun (ffield, test) -> (ffield = field) && (test) && (opt_init == None)) cls.is_attr_final)
+            then (match opt_init with
+            | Some expr -> Hashtbl.add fields field (eval_expr expr env None None)
+            | None ->  Hashtbl.add fields field (default_value_for_type ty))
+          )
+          (collect_attributes cls);
+
+        VObj { cls = cname; fields = fields }
+    | None -> error ("Class not found: " ^ cname)
+
   and class_incluse classes cname1 cname2 =
     if cname1 = cname2 then true
     else
@@ -199,7 +191,7 @@ let rec exec_prog (p: program): unit =
       | Some parent -> class_incluse classes parent cname2
       | None -> false
 
-    and eval_binop op v1 v2 =
+  and eval_binop op v1 v2 =
     match op, v1, v2 with
     | Add, VInt n1, VInt n2 -> VInt (n1 + n2)
     | Sub, VInt n1, VInt n2 -> VInt (n1 - n2)
@@ -214,8 +206,6 @@ let rec exec_prog (p: program): unit =
     | Neq, v1, v2 -> VBool (v1 <> v2)
     | And, VBool b1, VBool b2 -> VBool (b1 && b2)
     | Or, VBool b1, VBool b2 -> VBool (b1 || b2)
-    | Structeg, v1, v2 -> VBool (structural_eq v1 v2)
-    | Structineg, v1, v2 -> VBool (not (structural_eq v1 v2))
     | Structeg, v1, v2 -> VBool (structural_eq v1 v2)
     | Structineg, v1, v2 -> VBool (not (structural_eq v1 v2))
     | _ -> error "Invalid binary operation or operand types"
@@ -247,10 +237,16 @@ let rec exec_prog (p: program): unit =
     in
     let arg_values = List.map (fun a -> eval_expr a env this super) args in
     let local_env = add_params_to_env method_.params arg_values env in
+    let local_envv = add_params_to_env method_.locals (List.map (fun (ident, opt_expr) ->
+      match opt_expr with
+      | Some expr -> eval_expr expr env this super
+      | None -> default_value_for_type (List.assoc ident method_.locals)
+    ) method_.locals_init_vals) local_env in
     try
       let parent = match cls.parent with Some parent -> parent | None -> "void" in
-      exec_seq method_.code local_env (Some (VObj obj)) (Some (VObj { cls = parent; fields = obj.fields }));
-      Null
+      exec_seq method_.code local_envv (Some (VObj obj)) (Some (VObj { cls = parent; fields = obj.fields }));
+      if String.equal mname "constructor" then VObj obj
+      else Null
     with Return v -> v
 
   and exec_seq seq env this super =
@@ -300,7 +296,7 @@ let rec exec_prog (p: program): unit =
             let vfield = 
               (try Hashtbl.find obj.fields field
                 with Not_found -> try Hashtbl.find env field
-                                  with Not_found -> (*Hashtbl.iter (fun x y -> Printf.printf "Hello %s" x ) obj.fields;*) error ("Hna Field not found: " ^ field))
+                                  with Not_found -> error ("Field not found: " ^ field))
             in
             if is_final && vfield <> Null then error ("Field is final: " ^ field);
               (* Mise à jour du champ d'instance *)
@@ -368,23 +364,20 @@ let rec exec_prog (p: program): unit =
     | Some cls -> cls
     | None -> error ("Class not found: " ^ cname)
 
-    (*and add_params_to_env params args env =
-      let local_env = Hashtbl.copy env in
-      List.iter2 
-        (fun (name, typ, init_opt) arg -> 
-           (* Si la valeur initiale est définie, on utilise `init_opt`, sinon on utilise `arg` *)
-           let value = match init_opt with
-             | Some init -> (eval_expr init env this)
-             | None -> arg
-           in
-           Hashtbl.add local_env name value
-        ) 
-        params args;
-      local_env*)
-   and add_params_to_env params args env =
-        let local_env = Hashtbl.copy env in
-        List.iter2 (fun (name, _, _) arg -> Hashtbl.add local_env name arg) params args;
-        local_env
-    
+  and add_params_to_env params args env =
+    let local_env = Hashtbl.copy env in
+    List.iter2 (fun (name, _) arg -> Hashtbl.add local_env name arg) params args;
+    local_env
+
   in
+  (* Initialize global variables *)
+  List.iter (fun (x, opt) ->
+    match opt with
+    | Some v -> Hashtbl.add env x v
+    | None -> Hashtbl.add env x (default_value_for_type (List.assoc x p.globals))
+  ) (List.map (fun (ident, opt_expr) ->
+    match opt_expr with
+    | Some expr -> (ident, Some (eval_expr expr env None None))
+    | None -> (ident, None)
+    ) p.globals_init_vals);
   exec_seq p.main env None None

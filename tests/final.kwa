@@ -1,14 +1,17 @@
 var test t;
 
 class test {
-    attribute final int a;
+    attribute final int a = 5;
+    attribute final int b;
 
     method void constructor(int i) {
-        this.a = i;
+        // this.a = i;
+        this.b = i;
     }
 }
 
 main {
     t = new test(10);
     print(t.a);
+    print(t.b);
 }

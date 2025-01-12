@@ -95,7 +95,7 @@ init:
 
 ident_init:
 | IDENT { ($1, None) }  (* IDENT without initialization *)
-| IDENT ASSIGN expr { ($1, Some($3)) }  (* IDENT with initialization *)
+| IDENT SET expr { ($1, Some($3)) }  (* IDENT with initialization *)
 ;
 
 param_decl:
@@ -118,9 +118,9 @@ method_def:
         ) false lst in
       if has_duplicates (List.map (fun (id, _, _) -> id) loc) then failwith "Duplicate variable declaration"
         else List.map (fun (id, ty, _) -> (id, ty)) loc); 
-      locals_init_vals =
-        (let loc = List.fold_left (fun acc l -> acc @ l) [] locs in
-        List.map (fun (id, _, init) -> (id, init)) loc);
+    locals_init_vals =
+      (let loc = List.fold_left (fun acc l -> acc @ l) [] locs in
+      List.map (fun (id, _, init) -> (id, init)) loc);
     return = tp;
   } }
 ;
