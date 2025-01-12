@@ -13,6 +13,6 @@ main {
   a.y = 2;
   b.x = 1;
   b.y = 2;
-  print(a===b);
-  print(a=/=b);
+  print(a===b);   // true
+  print(a=/=b);   // false
 }

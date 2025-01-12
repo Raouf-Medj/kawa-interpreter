@@ -12,6 +12,6 @@ class test {
 
 main {
     t = new test(10);
-    print(t.a);
-    print(t.b);
+    print(t.a);     // 5
+    print(t.b);     // 10
 }

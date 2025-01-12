@@ -12,5 +12,5 @@ class factoriel {
 
 main {
     fct = new factoriel;
-    print(fct.fact(5));
+    print(fct.fact(5));     // 120
 }

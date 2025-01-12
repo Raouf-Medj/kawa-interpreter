@@ -20,5 +20,5 @@ main {
   print(48 + p.x);
   print(48 + p2.x);
   print(48 + p3.x);
-  // affiche 53
+  // affiche 53 53 53
 }

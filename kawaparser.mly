@@ -3,7 +3,17 @@
   open Lexing
   open Kawa
 
-  let rec tarray_maker d t= if(d=1) then TArray t else TArray (tarray_maker (d-1) t)  
+  let rec tarray_maker d t= if(d=1) then TArray t else TArray (tarray_maker (d-1) t)
+
+  let has_duplicates lst =
+    let tbl = Hashtbl.create (List.length lst) in
+    List.fold_left (fun found x ->
+      if found then true
+      else if Hashtbl.mem tbl x then true
+      else (Hashtbl.add tbl x (); false)
+    ) false lst
+
+  let flatten lst = List.fold_left (fun acc l -> acc @ l) [] lst
 
 %}
 
@@ -11,7 +21,7 @@
 %token <int> INT
 %token <string> IDENT
 %token MAIN
-%token LPAR RPAR BEGIN END SEMI COMMA DOT SET RBRACKET(* [ *) LBRACKET(* ] *)
+%token LPAR RPAR BEGIN END SEMI COMMA DOT SET RBRACKET LBRACKET
 %token VAR ATTR METHOD CLASS NEW THIS EXTENDS
 %token TINT TBOOL TVOID
 %token TRUE FALSE
@@ -23,7 +33,6 @@
 %token FINAL INSTANCEOF SUPER STATIC
 
 
-// %right SET
 %left OR
 %left AND
 %left EQ NEQ
@@ -46,18 +55,11 @@ program:
     { {
       classes=cls;
       globals=
-        (let glb = List.fold_left (fun acc l -> acc @ l) [] vrs in
-        let has_duplicates lst =
-          let tbl = Hashtbl.create (List.length lst) in
-          List.fold_left (fun found x ->
-            if found then true
-            else if Hashtbl.mem tbl x then true
-            else (Hashtbl.add tbl x (); false)
-          ) false lst in
+        (let glb = flatten vrs in
         if has_duplicates (List.map (fun (id, _, _) -> id) glb) then failwith "Duplicate variable declaration"
         else List.map (fun (id, ty, _) -> (id, ty)) glb); 
       globals_init_vals = 
-        (let glb = List.fold_left (fun acc l -> acc @ l) [] vrs in
+        (let glb = flatten vrs in
         List.map (fun (id, _, init) -> (id, init)) glb);
       main
     } }
@@ -68,11 +70,14 @@ class_def:
     {
       class_name = $2; (* Nom de la classe *)
       parent = $3; (* Classe parent, si elle existe *)
-      attributes = List.map (fun (id, typ, _, _, _) -> (id, typ)) $5; (* Liste des attributs *)
+      attributes = 
+        (let flat = flatten $5 in
+        if has_duplicates (List.map (fun (id, _, _, _, _) -> id) flat) then failwith "Duplicate attribute declaration"
+        else List.map (fun (id, typ, _, _, _) -> (id, typ)) flat); (* Liste des attributs *)
       methods = $6; (* Liste des méthodes *)
-      is_attr_final = List.map (fun (id, _, is_final, _, _) -> (id, is_final)) $5; (* Finalité des attributs *)
-      static_attribut = List.map (fun (id, _, _, is_static, _) -> (id, is_static)) $5; (* Attributs statiques *)
-      attr_init_vals = List.map (fun (id, _, _, _, init) -> (id, init)) $5; (* Valeurs initiales des attributs *)
+      is_attr_final = List.map (fun (id, _, is_final, _, _) -> (id, is_final)) (flatten $5); (* Finalité des attributs *)
+      static_attribut = List.map (fun (id, _, _, is_static, _) -> (id, is_static)) (flatten $5); (* Attributs statiques *)
+      attr_init_vals = List.map (fun (id, _, _, _, init) -> (id, init)) (flatten $5); (* Valeurs initiales des attributs *)
     }
   }
 ;
@@ -82,20 +87,21 @@ var_decl:
 ;
 
 attr_decl:
-| ATTR typpc IDENT init SEMI { ($3, $2, false, false, $4) }
-| ATTR FINAL typpc IDENT init SEMI { ($4, $3, true, false, $5) }
-| ATTR STATIC typpc IDENT init SEMI { ($4, $3, false, true, $5) }
-| ATTR STATIC FINAL typpc IDENT SET expr SEMI | ATTR FINAL STATIC typp IDENT SET expr SEMI { ($5, $4, true, true, Some($7)) }
-;
-
-init:
-| SET expr { Some($2) }
-| (* empty *) { None }
+| ATTR typpc separated_nonempty_list(COMMA, ident_init) SEMI { List.map (fun (ident, init) -> (ident, $2, false, false, init)) $3 }
+| ATTR FINAL typpc separated_nonempty_list(COMMA, ident_init) SEMI { List.map (fun (ident, init) -> (ident, $3, true, false, init)) $4 }
+| ATTR STATIC typpc separated_nonempty_list(COMMA, ident_init) SEMI { List.map (fun (ident, init) -> (ident, $3, false, true, init)) $4 }
+| ATTR STATIC FINAL typpc separated_nonempty_list(COMMA, ident_init) SEMI 
+    | ATTR FINAL STATIC typpc separated_nonempty_list(COMMA, ident_init) SEMI 
+    { List.map (fun (ident, init) -> 
+        match init with
+        | Some v -> (ident, $4, true, true, Some(v))
+        | None -> failwith "Static final attributes must be initialized"
+      ) $5 }
 ;
 
 ident_init:
-| IDENT { ($1, None) }  (* IDENT without initialization *)
-| IDENT SET expr { ($1, Some($3)) }  (* IDENT with initialization *)
+| IDENT { ($1, None) }  (* IDENT sans initialisation *)
+| IDENT SET expr { ($1, Some($3)) }  (* IDENT avec initialisation *)
 ;
 
 param_decl:
@@ -108,18 +114,11 @@ method_def:
     code = sequence;
     params = param_lst;
     locals = 
-      (let loc = List.fold_left (fun acc l -> acc @ l) [] locs in
-      let has_duplicates lst =
-        let tbl = Hashtbl.create (List.length lst) in
-        List.fold_left (fun found x ->
-          if found then true
-          else if Hashtbl.mem tbl x then true
-          else (Hashtbl.add tbl x (); false)
-        ) false lst in
+      (let loc = flatten locs in
       if has_duplicates (List.map (fun (id, _, _) -> id) loc) then failwith "Duplicate variable declaration"
-        else List.map (fun (id, ty, _) -> (id, ty)) loc); 
+      else List.map (fun (id, ty, _) -> (id, ty)) loc); 
     locals_init_vals =
-      (let loc = List.fold_left (fun acc l -> acc @ l) [] locs in
+      (let loc = flatten locs in
       List.map (fun (id, _, init) -> (id, init)) loc);
     return = tp;
   } }
@@ -144,6 +143,7 @@ typpc:
 
 %inline bracket_pair :
 | LBRACKET RBRACKET { 0 }
+;
 
 instr:
 | PRINT LPAR e=expr RPAR SEMI { Print(e) }
@@ -176,6 +176,7 @@ expr:
 | expr AND expr { Binop(And, $1, $3) }
 | expr OR expr { Binop(Or, $1, $3) }
 | expr INSTANCEOF IDENT { InstanceOf($1, $3) }
+| expr INSTANCEOF LPAR IDENT RPAR {InstanceOf($1 , $4)}
 | expr STRUCTEG expr { Binop(Structeg, $1, $3) }
 | expr STRUCTINEG expr { Binop(Structineg, $1, $3) }
 | SUB expr %prec NEG { Unop(Opp, $2) }
@@ -185,13 +186,12 @@ expr:
 | NEW IDENT LPAR separated_list(COMMA, expr) RPAR { NewCstr($2, $4) }
 | expr DOT IDENT LPAR separated_list(COMMA, expr) RPAR { MethCall($1, $3, $5) }
 | NEW typp nonempty_list(list_array) { EArrayCreate($2, $3) }
-| e = expr INSTANCEOF LPAR i = IDENT RPAR {InstanceOf(e , i)}
 ;
 
 %inline list_array : 
 | LBRACKET expr RBRACKET {$2}
-
 ;
+
 mem:
 | IDENT { Var($1) }
 | expr DOT IDENT { Field($1, $3) }

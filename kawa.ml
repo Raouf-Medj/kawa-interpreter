@@ -11,7 +11,6 @@
    | TClass of string
    | TArray of typ 
 
-
  let rec typ_to_string = function
    | TVoid    -> "void"
    | TInt     -> "int"
@@ -53,7 +52,6 @@
    | Var   of string
    | Field of expr (* objet *) * string (* nom d'un attribut *)
    | ArrayAccess of string (* nom tableau *) * expr list (* indice *)
-
 
  (* Instructions *)
  type instr =

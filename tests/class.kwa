@@ -13,5 +13,5 @@ main {
   a.y = 2;
   b.x = 3;
   b.y = 4;
-  print(a.x + a.y + b.x + b.y);
+  print(a.x + a.y + b.x + b.y);  // 10
 }

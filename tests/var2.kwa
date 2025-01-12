@@ -5,11 +5,11 @@ var int[] a, b = new int[5];
 
 main {
   x = 1;
-  y= 2;
-  z=3;
-  t=true;
+  y = 2;
+  z = 3;
+  t = true;
   a = new int[3];
-  print(a[2]);
-  print(x+y+z);
-  print(t);
+  print(a[2]);    // 0
+  print(x+y+z);   // 6
+  print(t);       // true
 }
