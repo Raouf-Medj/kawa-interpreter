@@ -75,15 +75,22 @@ class_def:
 
 
 var_decl:
-| VAR typpc separated_nonempty_list(COMMA, IDENT) SEMI { List.map (fun ident -> (ident, $2)) $3 }
+| VAR typp separated_nonempty_list(COMMA, IDENT) SEMI { List.map (fun ident -> (ident, $2)) $3 }
+| VAR typp separated_nonempty_list(COMMA, IDENT) error { failwith "Syntax error in variable declaration (missing semicolon)" }
+
 ;
 
 attr_decl:
-| ATTR typpc IDENT SEMI { ($3, $2, false, false) }
-| ATTR FINAL typpc IDENT SEMI { ($4, $3, true, false) }
-| ATTR STATIC typpc IDENT SEMI { ($4, $3, false, true) }
-| ATTR STATIC FINAL typpc IDENT SEMI | ATTR FINAL STATIC typp IDENT SEMI { ($5, $4, true, true) }
-
+| ATTR typp IDENT SEMI { ($3, $2, false, false) }
+| ATTR FINAL typp IDENT SEMI { ($4, $3, true, false) }
+| ATTR STATIC typp IDENT SEMI { ($4, $3, false, true) }
+| ATTR FINAL STATIC typp IDENT SEMI { ($5, $4, true, true) }
+| ATTR STATIC FINAL typp IDENT SEMI { ($5, $4, true, true) }
+| ATTR typp IDENT error { failwith "Syntax error in attribute declaration (missing semicolon)" }
+| ATTR FINAL typp IDENT error { failwith "Syntax error in attribute declaration (missing semicolon)" }
+| ATTR STATIC typp IDENT error { failwith "Syntax error in attribute declaration (missing semicolon)" }
+| ATTR FINAL STATIC typp IDENT error { failwith "Syntax error in attribute declaration (missing semicolon)" }
+| ATTR STATIC FINAL typp IDENT error { failwith "Syntax error in attribute declaration (missing semicolon)" }
 ;
 
 param_decl:
@@ -137,6 +144,9 @@ instr:
 | WHILE LPAR e=expr RPAR BEGIN b=list(instr) END { While(e, b) }
 | RETURN expr SEMI { Return($2) }
 | expr SEMI { Expr($1) }
+
+| PRINT LPAR expr RPAR error | mem SET expr error | RETURN expr error| expr error { failwith "Syntax error after instruction (missing semicolon)" }
+
 ;
 
 expr:
@@ -180,4 +190,3 @@ mem:
 | expr DOT IDENT { Field($1, $3) }
 | IDENT nonempty_list(list_array) {ArrayAccess($1, $2)}
 ;
-
