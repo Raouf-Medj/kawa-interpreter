@@ -170,21 +170,7 @@ expr:
     in
     { annot = annotation; expr = Get($1); loc = fst $loc }
 }
-| expr SUB expr { {annot = TInt; expr = Binop(Sub, $1, $3); loc = fst $loc  } }
-| expr ADD expr { {annot = TInt; expr = Binop(Add, $1, $3); loc = fst $loc  } }
-| expr MUL expr { {annot = TInt; expr = Binop(Mul, $1, $3); loc = fst $loc  } }
-| expr DIV expr { {annot = TInt; expr = Binop(Div, $1, $3); loc = fst $loc } }
-| expr REM expr { {annot = TInt; expr = Binop(Rem, $1, $3); loc = fst $loc } }
-| expr LT expr { {annot = TBool; expr = Binop(Lt, $1, $3); loc = fst $loc } }
-| expr LE expr { { annot = TBool; expr = Binop(Le, $1, $3); loc = fst $loc } }
-| expr GT expr { { annot = TBool; expr = Binop(Gt, $1, $3); loc = fst $loc } }
-| expr GE expr { { annot = TBool; expr = Binop(Ge, $1, $3); loc = fst $loc } }
-| expr EQ expr { { annot = TBool; expr = Binop(Eq, $1, $3); loc = fst $loc } }
-| expr NEQ expr { { annot = TBool; expr = Binop(Neq, $1, $3); loc = fst $loc } }
-| expr AND expr { { annot = TBool; expr = Binop(And, $1, $3); loc = fst $loc } }
-| expr OR expr { { annot = TBool; expr = Binop(Or, $1, $3); loc = fst $loc } }
-| expr STRUCTEG expr { { annot = TBool; expr = Binop(Structeg, $1, $3); loc = fst $loc } }
-| expr STRUCTINEG expr { { annot = TBool; expr = Binop(Structineg, $1, $3); loc = fst $loc } }
+| expr bop expr { { annot = TBool; expr = Binop($2, $1, $3); loc = fst $loc } }
 | SUB expr %prec NEG { { annot = TInt; expr = Unop(Opp, $2); loc = fst $loc } }
 | NOT expr { { annot = TBool; expr = Unop(Not, $2); loc = fst $loc } }
 | LPAR expr RPAR { $2 } 
