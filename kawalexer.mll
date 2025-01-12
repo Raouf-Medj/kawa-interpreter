@@ -78,7 +78,10 @@ rule token = parse
   | "=/=" {STRUCTINEG}
   | "[" { LBRACKET }
   | "]" { RBRACKET }
-  | _    { raise (Error ("unknown character : " ^ lexeme lexbuf)) }
+  | _    { raise (Error (Printf.sprintf "Unknown character '%s' at line %d, column %d"
+                                      (lexeme lexbuf) 
+                                      lexbuf.lex_curr_p.pos_lnum 
+                                      (lexbuf.lex_curr_p.pos_cnum - lexbuf.lex_curr_p.pos_bol))) }  
   | eof  { EOF }
 
 and comment = parse
