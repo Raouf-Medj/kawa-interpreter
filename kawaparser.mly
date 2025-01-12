@@ -85,7 +85,7 @@ attr_decl:
 | ATTR typpc IDENT init SEMI { ($3, $2, false, false, $4) }
 | ATTR FINAL typpc IDENT init SEMI { ($4, $3, true, false, $5) }
 | ATTR STATIC typpc IDENT init SEMI { ($4, $3, false, true, $5) }
-| ATTR STATIC FINAL typpc IDENT init SEMI | ATTR FINAL STATIC typp IDENT init SEMI { ($5, $4, true, true, $6) }
+| ATTR STATIC FINAL typpc IDENT SET expr SEMI | ATTR FINAL STATIC typp IDENT SET expr SEMI { ($5, $4, true, true, Some($7)) }
 ;
 
 init:

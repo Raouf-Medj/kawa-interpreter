@@ -43,18 +43,6 @@ let rec exec_prog (p: program): unit =
   in
   (* Table globale pour stocker les attributs statiques des classes *)
   let static_fields = Hashtbl.create 16
-  in 
-  (* Initialiser les attributs statiques d'une classe *)
-  let init_static_fields cls =
-    match Hashtbl.find_opt static_fields cls.class_name with
-    | None -> 
-        (* Initialise les valeurs des champs statiques *)
-        let fields = Hashtbl.create 16 in
-        cls.static_attribut 
-        |> List.iter (fun (field, is_static) -> 
-            if is_static then Hashtbl.add fields field (default_value_for_type (List.assoc field cls.attributes)));
-        Hashtbl.add static_fields cls.class_name fields
-    | Some _ -> () (* Ne rien faire si déjà initialisé *)
 
   in
   let rec eval_expr e env this super =
@@ -182,6 +170,21 @@ let rec exec_prog (p: program): unit =
 
         VObj { cls = cname; fields = fields }
     | None -> error ("Class not found: " ^ cname)
+    
+  (* Initialiser les attributs statiques d'une classe *)
+  and init_static_fields cls =
+    match Hashtbl.find_opt static_fields cls.class_name with
+    | None -> 
+        (* Initialise les valeurs des champs statiques *)
+        let fields = Hashtbl.create 16 in
+        List.iter2 (fun (field, is_static) (field, opt_expr) -> 
+            if is_static then Hashtbl.add fields field (
+              match opt_expr with
+              | Some expr -> eval_expr expr env None None
+              | None -> default_value_for_type (List.assoc field cls.attributes)
+            )) cls.static_attribut cls.attr_init_vals;
+        Hashtbl.add static_fields cls.class_name fields
+    | Some _ -> () (* Ne rien faire si déjà initialisé *)
 
   and class_incluse classes cname1 cname2 =
     if cname1 = cname2 then true

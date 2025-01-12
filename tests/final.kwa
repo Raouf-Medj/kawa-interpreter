@@ -1,7 +1,7 @@
 var test t;
 
 class test {
-    attribute final int a = 5;
+    attribute static final int a = 5;
     attribute final int b;
 
     method void constructor(int i) {
