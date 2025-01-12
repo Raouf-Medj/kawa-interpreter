@@ -26,10 +26,10 @@
         "bool",       TBOOL;
         "void",       TVOID;
         "extends",    EXTENDS;
-        "final",     FINAL;
-        "public",    PUBLIC;
-        "private",   PRIVATE;
-        "protected", PROTECTED;
+        "final",      FINAL;
+        "static",     STATIC;
+        "instanceof", INSTANCEOF;
+        "super",      SUPER;
       ] ;
     fun s ->
       try  Hashtbl.find h s
@@ -74,7 +74,14 @@ rule token = parse
   | "/"  { DIV }
   | "-"  { SUB }
   | "*"  { MUL }
-  | _    { raise (Error ("unknown character : " ^ lexeme lexbuf)) }
+  | "===" {STRUCTEG}
+  | "=/=" {STRUCTINEG}
+  | "[" { LBRACKET }
+  | "]" { RBRACKET }
+  | _    { raise (Error (Printf.sprintf "Unknown character '%s' at line %d, column %d"
+                                      (lexeme lexbuf) 
+                                      lexbuf.lex_curr_p.pos_lnum 
+                                      (lexbuf.lex_curr_p.pos_cnum - lexbuf.lex_curr_p.pos_bol))) }
   | eof  { EOF }
 
 and comment = parse
