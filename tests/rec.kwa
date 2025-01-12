@@ -4,8 +4,7 @@ class factoriel {
     method int fact (int n) {
         if (n == 0 || n == 1) {return 1;}
         else {
-            n = n - 1;
-            return (n+1) * this.fact(n);
+            return n * this.fact(n-1);
         }
     }
 }

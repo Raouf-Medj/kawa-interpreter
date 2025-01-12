@@ -162,30 +162,34 @@ expr:
 | THIS { This }
 | SUPER { Super }
 | mem { Get($1) }
-| expr ADD expr { Binop(Add, $1, $3) }
-| expr SUB expr { Binop(Sub, $1, $3) }
-| expr MUL expr { Binop(Mul, $1, $3) }
-| expr DIV expr { Binop(Div, $1, $3) }
-| expr REM expr { Binop(Rem, $1, $3) }
-| expr LT expr { Binop(Lt, $1, $3) }
-| expr LE expr { Binop(Le, $1, $3) }
-| expr GT expr { Binop(Gt, $1, $3) }
-| expr GE expr { Binop(Ge, $1, $3) }
-| expr EQ expr { Binop(Eq, $1, $3) }
-| expr NEQ expr { Binop(Neq, $1, $3) }
-| expr AND expr { Binop(And, $1, $3) }
-| expr OR expr { Binop(Or, $1, $3) }
-| expr INSTANCEOF IDENT { InstanceOf($1, $3) }
-| expr INSTANCEOF LPAR IDENT RPAR {InstanceOf($1 , $4)}
-| expr STRUCTEG expr { Binop(Structeg, $1, $3) }
-| expr STRUCTINEG expr { Binop(Structineg, $1, $3) }
+| LPAR expr RPAR { $2 }
 | SUB expr %prec NEG { Unop(Opp, $2) }
 | NOT expr { Unop(Not, $2) }
-| LPAR expr RPAR { $2 }
+| expr bop expr { Binop($2, $1, $3) }
+| expr INSTANCEOF IDENT { InstanceOf($1, $3) }
+| expr INSTANCEOF LPAR IDENT RPAR {InstanceOf($1 , $4)}
 | NEW IDENT { New($2) }
 | NEW IDENT LPAR separated_list(COMMA, expr) RPAR { NewCstr($2, $4) }
 | expr DOT IDENT LPAR separated_list(COMMA, expr) RPAR { MethCall($1, $3, $5) }
 | NEW typp nonempty_list(list_array) { EArrayCreate($2, $3) }
+;
+
+%inline bop:
+| ADD { Add }
+| SUB { Sub }
+| MUL { Mul}
+| DIV { Div }
+| REM { Rem } 
+| LT { Lt } 
+| LE { Le }
+| GT { Gt }
+| GE { Ge }
+| EQ { Eq }
+| NEQ { Neq }
+| AND { And }
+| OR {Or}
+| STRUCTEG { Structeg }
+| STRUCTINEG { Structineg }
 ;
 
 %inline list_array : 
