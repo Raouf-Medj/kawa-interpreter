@@ -45,25 +45,25 @@ let rec exec_prog (p: program): unit =
   let static_fields = Hashtbl.create 16
 
   in
-  let rec eval_expr e env this super =
-    match e with
+  let rec eval_expr (e :expr) env this super =
+    match e.expr with
     | Int n -> VInt n
     | Bool b -> VBool b
     | Unop (Opp, e1) ->
         (match eval_expr e1 env this super with
          | VInt n -> VInt (-n)
-         | _ -> error "Unary '-' applied to non-integer")
+         | _ -> error ("Unary '-' applied to non-integer (line: " ^ string_of_int e.loc.pos_lnum  ^" of: " ^ e.loc.pos_fname^")"))
     | Unop (Not, e1) ->
         (match eval_expr e1 env this super with
          | VBool b -> VBool (not b)
-         | _ -> error "Unary 'not' applied to non-boolean")
+         | _ -> error ("Unary 'not' applied to non-boolean (line: " ^ string_of_int e.loc.pos_lnum  ^" of: " ^ e.loc.pos_fname^")"))
     | Binop (op, e1, e2) ->
         let v1 = eval_expr e1 env this super in
         let v2 = eval_expr e2 env this super in
         eval_binop op v1 v2
     | Get (Var x) ->
         (try Hashtbl.find env x
-         with Not_found -> error ("Variable not found: " ^ x))
+         with Not_found -> error ("Variable not found: " ^ x ^ " (line: " ^ string_of_int e.loc.pos_lnum  ^" of: " ^ e.loc.pos_fname^")"))
     | Get (Field (e, field)) ->
         (match eval_expr e env this super with
          | VObj o -> (
@@ -76,40 +76,40 @@ let rec exec_prog (p: program): unit =
                 (try 
                     Hashtbl.find class_static_fields field
                   with Not_found -> 
-                    error ("Field not found: " ^ field))
+                    error ("Field not found: " ^ field ^" (line: " ^ string_of_int e.loc.pos_lnum  ^" of: " ^ e.loc.pos_fname^")"))
             | None ->
-                error ("Static fields not initialized for class: " ^ cname)))
-         | _ -> error "Field access on non-object")
+                error ("Static fields not initialized for class: " ^ cname ^" (line: " ^ string_of_int e.loc.pos_lnum  ^" of: " ^ e.loc.pos_fname^")")))
+         | _ -> error ("Field access on non-object (line: " ^ string_of_int e.loc.pos_lnum  ^" of: " ^ e.loc.pos_fname^")"))
     | This -> (match this with
                | Some obj -> obj
-               | None -> error "Unbound 'this' in the current context")
+               | None -> error ("Unbound 'this' in the current context (line: " ^ string_of_int e.loc.pos_lnum  ^" of: " ^ e.loc.pos_fname^")"))
     | Super -> (match super with
                 | Some obj -> obj
-                | None -> error "Unbound 'super' in the current context")
+                | None -> error ("Unbound 'super' in the current context (line: " ^ string_of_int e.loc.pos_lnum  ^" of: " ^ e.loc.pos_fname^")"))
     | New cname -> create_object cname
     | NewCstr (cname, args) ->
         let obj = create_object cname in
         (match obj with
         | VObj obj -> call_method obj "constructor" args env this super
-        | _ -> error "New object creation failed")
+        | _ -> error ("New object creation failed (line: " ^ string_of_int e.loc.pos_lnum  ^" of: " ^ e.loc.pos_fname^")"))
     | MethCall (obj_expr, mname, args) ->
         (match eval_expr obj_expr env this super with
          | VObj obj -> call_method obj mname args env this super
-         | _ -> error "Method call on non-object")
+         | _ -> error ("Method call on non-object (line: " ^ string_of_int e.loc.pos_lnum  ^" of: " ^ e.loc.pos_fname^")"))
     | InstanceOf (e, cname) -> 
         (match eval_expr e env this super with
          | VObj obj -> VBool (class_incluse p.classes obj.cls cname)
-         | _ -> error "Instanceof on non-object")
+         | _ -> error ("Instanceof on non-object (line: " ^ string_of_int e.loc.pos_lnum  ^" of: " ^ e.loc.pos_fname^")"))
     | EArrayCreate (typ, dims) -> 
       (match dims with
-      | [] -> error "Array dimensions cannot be empty"
+      | [] -> error ("Array dimensions cannot be empty (line: " ^ string_of_int e.loc.pos_lnum  ^" of: " ^ e.loc.pos_fname^")")
       | _ ->
           (* Évalue les dimensions *)
           let dim_sizes = List.map (fun dim_expr ->
             match eval_expr dim_expr env this super with
             | VInt size when size > 0 -> size
-            | VInt size when size <= 0 -> error "Array size must be positive"
-            | _ -> error "Array dimensions must be integers"
+            | VInt size when size <= 0 -> error ("Array size must be positive (line: " ^ string_of_int e.loc.pos_lnum  ^" of: " ^ e.loc.pos_fname^")")
+            | _ -> error ("Array dimensions must be integers(line: " ^ string_of_int e.loc.pos_lnum  ^" of: " ^ e.loc.pos_fname^")")
           ) dims in
                 
           (* Fonction récursive pour créer un tableau multidimensionnel *)
@@ -120,7 +120,7 @@ let rec exec_prog (p: program): unit =
                 (* Crée une dimension contenant des sous-tableaux *)
                 let inner_array = create_nested_array rest in
                 VArray (Array.init dim (fun _ -> inner_array))
-            | [] -> error "Unexpected empty dimension list during array creation"
+            | [] -> error ("Unexpected empty dimension list during array creation(line: " ^ string_of_int e.loc.pos_lnum  ^" of: " ^ e.loc.pos_fname^")")
           in
 
           (* Crée le tableau avec les tailles données *)
@@ -134,19 +134,19 @@ let rec exec_prog (p: program): unit =
         let indices_values = List.map (fun idx_expr ->
           match eval_expr idx_expr env this super with
           | VInt idx when idx >= 0 -> idx
-          | VInt idx when idx < 0 -> error "Array index must be non-negative"
-          | _ -> error "Array indices must be integers"
+          | VInt idx when idx < 0 -> error ("Array index must be non-negative (line: " ^ string_of_int e.loc.pos_lnum  ^" of: " ^ e.loc.pos_fname^")")
+          | _ -> error ("Array indices must be integers (line: " ^ string_of_int e.loc.pos_lnum  ^" of: " ^ e.loc.pos_fname^")")
         ) indices in
         let rec access_nested_array arr dims =
           match arr, dims with
           | VArray nested_array, idx :: rest when idx < Array.length nested_array ->
               if rest = [] then nested_array.(idx)
               else access_nested_array nested_array.(idx) rest
-          | VArray _, idx :: _ -> error "Array index out of bounds"
-          | _, _ -> error "Invalid array access"
+          | VArray _, idx :: _ -> error ("Array index out of bounds (line: " ^ string_of_int e.loc.pos_lnum  ^" of: " ^ e.loc.pos_fname^")")
+          | _, _ -> error ("Invalid array access (line: " ^ string_of_int e.loc.pos_lnum  ^" of: " ^ e.loc.pos_fname^ ")" )
         in
         access_nested_array array_val indices_values
-      with Not_found -> error ("Array not found: " ^ array_name))
+      with Not_found -> error ("Array not found: " ^ array_name ^"(line: " ^ string_of_int e.loc.pos_lnum  ^" of: " ^ e.loc.pos_fname^")"))
 
   (* Fonction de création d'un objet d'instance *)
   and create_object cname =

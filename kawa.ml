@@ -2,6 +2,7 @@
    Kawa : un petit langage à objets inspiré de Java
  *)
 
+
 (* Types déclarés pour les attributs, pour les variables, et pour les 
    paramètres et résultats des méthodes. *)
    type typ =
@@ -25,8 +26,16 @@
             | And | Or  
             | Structeg |Structineg
 
+(*type position = {
+  pos_fname : string;
+  pos_lnum : int;
+  pos_bol : int;
+  pos_cnum : int;
+}*)
+  type expr = {annot : typ; expr: expr_; loc: Lexing.position}
+
  (* Expressions *)
- type expr =
+ and expr_ =
   (* Base arithmétique *)
   | Int    of int
   | Bool   of bool
