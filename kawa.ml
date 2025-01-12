@@ -63,6 +63,7 @@
    | Set    of mem_access * expr
    (* Structures de contrôle usuelles *)
    | If     of expr * seq * seq
+   | UIf of expr * seq
    | While  of expr * seq
    (* Fin d'une fonction *)
    | Return of expr
