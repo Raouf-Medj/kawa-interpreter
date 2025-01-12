@@ -126,9 +126,9 @@ let typecheck_prog p =
       with Not_found ->
         error ("Undeclared variable: "))
     | This -> 
-      (try {annot = Env.find "this" tenv; expr =e.expr; loc = e.loc} with Not_found -> error ("Unbound 'this' in the current context"))
+      (try {annot = Env.find "this" tenv; expr =e.expr; loc = e.loc} with Not_found -> error ("Unbound 'this' in the current context at line: " ^ string_of_int e.loc.pos_lnum))
     | Super -> 
-      (try {annot = Env.find "super" tenv; expr = e.expr ; loc = e.loc} with Not_found -> error ("Unbound 'super' in the current context"))
+      (try {annot = Env.find "super" tenv; expr = e.expr ; loc = e.loc} with Not_found -> error ("Unbound 'super' in the current context at line: " ^ string_of_int e.loc.pos_lnum))
     | New cname -> 
       let _ = find_class p.classes cname in {annot = TClass cname;expr =e.expr; loc=e.loc}
     | NewCstr (cname, args) ->
@@ -139,18 +139,18 @@ let typecheck_prog p =
           | None -> error ("Constructor not defined in class: " ^ cname)
         in
         if List.length cstr_params <> List.length args then
-          error "Constructor argument count mismatch";
+          error ("Constructor argument count mismatch at line: " ^ string_of_int e.loc.pos_lnum);
         List.iter2 (fun param_type arg -> check arg param_type tenv) cstr_params args;
         {annot = TClass cname; expr = e.expr; loc = e.loc}
     | MethCall (obj, mname, args) ->
       let typed_e = type_expr obj tenv in 
         (match typed_e.annot with
         | TClass cname ->
-            if cname = "void" then error "Class has no superclass";
+            if cname = "void" then error ("Class has no superclassat line: " ^ string_of_int e.loc.pos_lnum);
             let cls = find_class p.classes cname in
             let method_ = find_method cls mname in
             if List.length method_.params <> List.length args then
-              error "Method argument count mismatch";
+              error ("Method argument count mismatch at line: " ^ string_of_int e.loc.pos_lnum);
             List.iter2 (fun (_, param_type) arg -> check arg param_type tenv) method_.params args;
             {annot=method_.return; expr = e.expr; loc = e.loc}
         | ty -> type_error ty (TClass "object"))
