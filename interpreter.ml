@@ -351,6 +351,11 @@ let rec exec_prog (p: program): unit =
          | VBool true -> exec_seq then_seq env this super
          | VBool false -> exec_seq else_seq env this super
          | _ -> error "If condition must be a boolean")
+    | UIf (cond, then_seq) ->
+        (match eval_expr cond env this super with
+         | VBool true -> exec_seq then_seq env this super
+         | VBool false -> ignore()
+         | _ -> error "If condition must be a boolean")
     | While (cond, body) ->
         let rec loop () =
           match eval_expr cond env this super with
