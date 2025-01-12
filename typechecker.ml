@@ -22,8 +22,11 @@ let typecheck_prog p =
     try List.find (fun m -> m.method_name = mname) cls.methods
     with Not_found -> error ("Method not found: " ^ mname)
 
+  and check_eq_type ?(context = "") expected actual =
+    if expected <> actual then type_error actual expected
+
   and check e typ tenv =
-    let typ_e = type_expr e tenv in
+    let typ_e = (type_expr e tenv).annot in
     match typ_e, typ with
     | TClass cls1, TClass cls2 -> 
       if not (class_incluse p.classes cls1 cls2) 
@@ -47,18 +50,27 @@ let typecheck_prog p =
           | TArray elem_type -> reduce_dim elem_type tl
           | _ -> error "Dimension mismatch: expected an array")
 
-  and type_expr e tenv = match e with
-    | Int _  -> TInt
-    | Bool _ -> TBool
-    | Unop (Opp, e1) ->
+  and type_expr e tenv : expr= match e.expr with
+    | Int _  -> e
+    | Bool _ -> e
+    | Unop (u, e) -> (
+        let typed_e = type_expr e tenv in
+        match u with
+        | Opp ->
+            check_eq_type TInt typed_e.annot;
+            {annot = TInt; expr = Unop(u, typed_e); loc = e.loc}
+        | Not ->
+            check_eq_type TBool typed_e.annot;
+            {annot = TBool; expr = Unop(u,typed_e) ; loc = e.loc})
+    (*| Unop (Opp, e1) ->
         (match type_expr e1 tenv with
         | TInt -> TInt
         | ty -> type_error ty TInt)
     | Unop (Not, e1) ->
         (match type_expr e1 tenv with
         | TBool -> TBool
-        | ty -> type_error ty TBool)
-    | Binop (op, e1, e2) ->
+        | ty -> type_error ty TBool)*)
+    (*| Binop (op, e1, e2) ->
       (match op with
       | Add | Sub | Mul | Div | Rem ->
           check e1 TInt tenv; check e2 TInt tenv; TInt
@@ -75,27 +87,50 @@ let typecheck_prog p =
           let t1 = type_expr e1 tenv in
           let t2 = type_expr e2 tenv in
           if t1 <> t2 then type_error t2 t1;
-          TBool)
-    | Get (Var x) -> (try Env.find x tenv with Not_found -> error ("Undeclared variable: " ^ x))
+          TBool)*)
+          | Binop (u, e1, e2) -> (
+            let typed_e1 = type_expr e1 tenv in
+            let typed_e2 = type_expr e2 tenv in
+            match u with
+            | Eq ->
+                check_eq_type typed_e1.annot typed_e2.annot;
+                { annot = TBool; expr = Binop (u, typed_e1, typed_e2) ; loc = e.loc}
+            | Lt | Le | Gt | Ge | Neq ->
+                check_eq_type TInt typed_e1.annot;
+                check_eq_type TInt typed_e2.annot;
+                { annot = TBool; expr = Binop (u, typed_e1, typed_e2) ; loc = e.loc}
+            | Add | Sub | Mul | Div | Rem ->
+                check_eq_type TInt typed_e1.annot;
+                check_eq_type TInt typed_e2.annot;
+                { annot = TInt; expr = Binop (u, typed_e1, typed_e2) ; loc = e.loc}
+            | And | Or ->
+                check_eq_type TBool typed_e1.annot;
+                check_eq_type TBool typed_e2.annot;
+                {annot = TBool ; expr =  Binop(u , typed_e1, typed_e2); loc = e.loc}
+          | Structeg | Structineg ->
+                                    if typed_e1.annot <> typed_e2.annot then type_error typed_e2.annot typed_e1.annot;
+                                    { annot = TBool; expr = Binop (u, typed_e1, typed_e2) ; loc = e.loc})
+    | Get (Var x) -> (try {annot = (Env.find x tenv); expr =e.expr; loc=e.loc } with Not_found -> error ("Undeclared variable: " ^ x))
     | Get (Field (e, field)) ->
-      (match type_expr e tenv with
+      let typed_e = type_expr e tenv in 
+      (match  typed_e.annot with
       | TClass cname ->
           let cls = find_class p.classes cname in
-          find_field_type cls field
+          {annot = find_field_type cls field; expr =e.expr; loc=e.loc}
       | ty -> type_error ty (TClass "object"))
     | Get (ArrayAccess(name, indices)) -> (
       try
         let arr_type = Env.find name tenv in
-        try reduce_dim arr_type indices
+        try {annot = reduce_dim arr_type indices; expr = e.expr; loc = e.loc}
         with Error msg -> error msg
       with Not_found ->
         error ("Undeclared variable: "))
     | This -> 
-      (try Env.find "this" tenv with Not_found -> error ("Unbound 'this' in the current context"))
+      (try {annot = Env.find "this" tenv; expr =e.expr; loc = e.loc} with Not_found -> error ("Unbound 'this' in the current context"))
     | Super -> 
-      (try Env.find "super" tenv with Not_found -> error ("Unbound 'super' in the current context"))
+      (try {annot = Env.find "super" tenv; expr = e.expr ; loc = e.loc} with Not_found -> error ("Unbound 'super' in the current context"))
     | New cname -> 
-      let _ = find_class p.classes cname in TClass cname
+      let _ = find_class p.classes cname in {annot = TClass cname;expr =e.expr; loc=e.loc}
     | NewCstr (cname, args) ->
         let cls = find_class p.classes cname in
         let cstr_params =
@@ -106,9 +141,10 @@ let typecheck_prog p =
         if List.length cstr_params <> List.length args then
           error "Constructor argument count mismatch";
         List.iter2 (fun param_type arg -> check arg param_type tenv) cstr_params args;
-        TClass cname
+        {annot = TClass cname; expr = e.expr; loc = e.loc}
     | MethCall (obj, mname, args) ->
-        (match type_expr obj tenv with
+      let typed_e = type_expr obj tenv in 
+        (match typed_e.annot with
         | TClass cname ->
             if cname = "void" then error "Class has no superclass";
             let cls = find_class p.classes cname in
@@ -116,19 +152,20 @@ let typecheck_prog p =
             if List.length method_.params <> List.length args then
               error "Method argument count mismatch";
             List.iter2 (fun (_, param_type) arg -> check arg param_type tenv) method_.params args;
-            method_.return
+            {annot=method_.return; expr = e.expr; loc = e.loc}
         | ty -> type_error ty (TClass "object"))
     | InstanceOf (e, cname) ->
       (let _ = find_class p.classes cname in
-      match type_expr e tenv with
-      | TClass ty -> TBool
+      let typed_e = type_expr e tenv in 
+      match typed_e.annot with
+      | TClass ty -> {annot=TBool;expr= e.expr; loc=e.loc}
       | ty -> type_error ty (TClass "object"))
     | EArrayCreate(t, n) ->
       List.iter (fun x -> check x TInt tenv) n;
       let rec retu n = 
         if n == 1 then t
         else TArray (retu (n-1)) 
-      in  TArray (retu (List.length n))
+      in  {annot = TArray (retu (List.length n)); expr = e.expr; loc = e.loc}
 
   
   and find_field_type cls field =
@@ -159,7 +196,8 @@ let typecheck_prog p =
         let tvar = Env.find x tenv in
         check e tvar tenv
     | Set (Field (obj, field), e) ->
-        (match type_expr obj tenv with
+      let typed_e =type_expr obj tenv in
+        (match typed_e.annot with
         | TClass cname ->
             let cls = find_class p.classes cname in
             let tfield = find_field_type cls field in
