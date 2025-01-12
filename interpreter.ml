@@ -45,8 +45,8 @@ let rec exec_prog (p: program): unit =
   let static_fields = Hashtbl.create 16
 
   in
-  let rec eval_expr e env this super =
-    match e with
+  let rec eval_expr (e :expr) env this super =
+    match e.expr with
     | Int n -> VInt n
     | Bool b -> VBool b
     | Unop (Opp, e1) ->
