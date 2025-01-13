@@ -12,6 +12,7 @@ let report (b,e) =
 let () =
   let c  = open_in file in
   let lb = Lexing.from_channel c in
+  set_filename lb file ;
   try
     let prog = Kawaparser.program Kawalexer.token lb in
     close_in c;
@@ -23,12 +24,12 @@ let () =
      eprintf "type error: %s@." s;
      exit 1
   | Kawalexer.Error s ->
-     eprintf "lexical error: %s@." s;
      report (lexeme_start_p lb, lexeme_end_p lb);
+     eprintf "lexical error: %s@." s;
      exit 1
   | Kawaparser.Error ->
-     eprintf "syntax error@.";
      report (lexeme_start_p lb, lexeme_end_p lb);
+     eprintf "syntax error@.";
      exit 1
   | Interpreter.Error s ->
      eprintf "interpreter error: %s@." s;
