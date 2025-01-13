@@ -20,7 +20,7 @@
    | TArray a -> Printf.sprintf "%s[]" (typ_to_string a)
 
 
- type unop  = Opp | Not
+ type unop  = Opp | Not | Cast of typ
  type binop = Add | Sub | Mul | Div | Rem
             | Lt  | Le  | Gt | Ge | Eq  | Neq
             | And | Or  

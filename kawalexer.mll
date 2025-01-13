@@ -55,6 +55,7 @@ rule token = parse
   | ";"  { SEMI }
   | ","  { COMMA }
   | "."  { DOT }
+  | ":"  {COLON}
   | "="  { SET }
   | "("  { LPAR }
   | ")"  { RPAR }

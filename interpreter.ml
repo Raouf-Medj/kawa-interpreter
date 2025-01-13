@@ -1,4 +1,5 @@
 open Kawa
+open Typechecker
 
 type value =
   | VInt of int
@@ -57,6 +58,14 @@ let rec exec_prog (p: program): unit =
         (match eval_expr e1 env this super with
          | VBool b -> VBool (not b)
          | _ -> error ("Unary 'not' applied to non-boolean (line: " ^ string_of_int e.loc.pos_lnum  ^" of: " ^ e.loc.pos_fname^")"))
+    |Unop(Cast(t), e1) ->  
+       (match t, eval_expr e1 env this super with
+       |_,VInt n -> VInt n 
+       |_, VBool b -> VBool b
+       |TClass a, VObj obj -> if (class_incluse p.classes a obj.cls) then VObj obj 
+                              else Typechecker.error ("Impossible typecast at line: "^string_of_int e.loc.pos_lnum^" in file: "^e.loc.pos_fname)
+       |_,_ -> error("Trying to cast to a non-type (line: " ^ string_of_int e.loc.pos_lnum  ^" of: " ^ e.loc.pos_fname^")")
+                              )
     | Binop (op, e1, e2) ->
         let v1 = eval_expr e1 env this super in
         let v2 = eval_expr e2 env this super in

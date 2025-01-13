@@ -22,7 +22,7 @@
 %token <int> INT
 %token <string> IDENT
 %token MAIN
-%token LPAR RPAR BEGIN END SEMI COMMA DOT SET RBRACKET LBRACKET
+%token LPAR RPAR BEGIN END SEMI COMMA DOT SET RBRACKET LBRACKET COLON
 %token VAR ATTR METHOD CLASS NEW THIS EXTENDS
 %token TINT TBOOL TVOID
 %token TRUE FALSE
@@ -44,7 +44,7 @@
 %right NEG
 %right NOT
 %left DOT 
-
+%nonassoc COLON
 
 %start program
 %type <Kawa.program> program
@@ -173,6 +173,7 @@ expr:
 | expr bop expr { { annot = TBool; expr = Binop($2, $1, $3); loc = fst $loc } }
 | SUB expr %prec NEG { { annot = TInt; expr = Unop(Opp, $2); loc = fst $loc } }
 | NOT expr { { annot = TBool; expr = Unop(Not, $2); loc = fst $loc } }
+| expr COLON LPAR typp RPAR   {{annot = TVoid ; expr = Unop(Cast($4), $1) ; loc = fst $loc}}
 | LPAR expr RPAR { $2 } 
 | NEW IDENT { { annot = TClass($2); expr = New($2); loc = fst $loc } }
 | NEW IDENT LPAR separated_list(COMMA, expr) RPAR { 

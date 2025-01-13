@@ -61,7 +61,17 @@ let typecheck_prog p =
             {annot = TInt; expr = Unop(u, typed_e); loc = e.loc}
         | Not ->
             check_eq_type TBool typed_e.annot;
-            {annot = TBool; expr = Unop(u,typed_e) ; loc = e.loc})
+            {annot = TBool; expr = Unop(u,typed_e) ; loc = e.loc}
+        |Cast t -> 
+          match t, typed_e.annot with 
+          |TInt, TInt -> {annot = TInt; expr = e.expr ; loc = e.loc}
+          |TBool, TBool ->{annot = TBool; expr = e.expr ; loc = e.loc}
+          |TClass a, TClass b ->
+            if(class_incluse p.classes a b) then  {annot = t ; expr = typed_e.expr; loc = e.loc}
+            else if (class_incluse p.classes b a ) then {annot = t ; expr = Unop(u, typed_e); loc = e.loc} (*typecast vers le bas*)
+            else error ("Impossible to typecast: No inheritance between classes "^a^" and "^b) 
+          |_, _ -> error ("Cast not supported")
+    )
     (*| Unop (Opp, e1) ->
         (match type_expr e1 tenv with
         | TInt -> TInt
@@ -159,7 +169,7 @@ let typecheck_prog p =
       let typed_e = type_expr e tenv in 
       match typed_e.annot with
       | TClass ty -> {annot=TBool;expr= e.expr; loc=e.loc}
-      | ty -> type_error ty (TClass "object"))
+      | ty -> (type_error ty (TClass "object")) )
     | EArrayCreate(t, n) ->
       List.iter (fun x -> check x TInt tenv) n;
       let rec retu n = 

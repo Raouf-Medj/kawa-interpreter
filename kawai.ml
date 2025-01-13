@@ -12,6 +12,7 @@ let report (b,e) =
 let () =
   let c  = open_in file in
   let lb = Lexing.from_channel c in
+  set_filename lb file ;
   try
     let prog = Kawaparser.program Kawalexer.token lb in
     close_in c;
