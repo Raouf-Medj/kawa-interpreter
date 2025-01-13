@@ -22,7 +22,7 @@ let typecheck_prog p =
     try List.find (fun m -> m.method_name = mname) cls.methods
     with Not_found -> error ("Method not found: " ^ mname)
 
-  and check_eq_type ?(context = "") expected actual =
+  and check_eq_type expected actual =
     if expected <> actual then type_error actual expected
 
   and check e typ tenv =
