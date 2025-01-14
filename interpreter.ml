@@ -122,14 +122,19 @@ let rec exec_prog (p: program): unit =
           ) dims in
                 
           (* Fonction récursive pour créer un tableau multidimensionnel *)
-          let rec create_nested_array sizes =
-            match sizes with
-            | [last_dim] -> VArray (Array.make last_dim (default_value_for_type typ))  (* Dernier niveau du tableau *)
+          let rec create_nested_array dims  =
+            match dims with
+            | [] -> failwith "Dimensions list cannot be empty"
+            | [dim] -> (
+                match typ with
+                | TInt -> VArray (Array.init dim (fun _ -> VInt 0))
+                | TBool -> VArray (Array.init dim (fun _ -> VBool false))
+                | TVoid -> VArray (Array.init dim (fun _ -> Null))
+                | TClass _ -> VArray (Array.init dim (fun _ -> Null))
+                | _ -> error ("Can't handle this data type")
+                )
             | dim :: rest ->
-                (* Crée une dimension contenant des sous-tableaux *)
-                let inner_array = create_nested_array rest in
-                VArray (Array.init dim (fun _ -> inner_array))
-            | [] -> error ("Unexpected empty dimension list during array creation(line: " ^ string_of_int e.loc.pos_lnum  ^" of: " ^ e.loc.pos_fname^")")
+                VArray (Array.init dim (fun _ -> create_nested_array rest ))
           in
 
           (* Crée le tableau avec les tailles données *)
