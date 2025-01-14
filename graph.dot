@@ -1,0 +1,22 @@
+digraph G {
+  Program [label="Program", ];
+  Global_p [label="Global_p", ];
+  Class_point [label="Class_point", ];
+  point_Attr_x [label="point_Attr_x", ];
+  Class_segment [label="Class_segment", ];
+  Global_s [label="Global_s", ];
+  segment_Attr_b [label="segment_Attr_b", ];
+  point_Attr_y [label="point_Attr_y", ];
+  segment_Attr_a [label="segment_Attr_a", ];
+  
+  
+  Program -> Class_point;
+  Program -> Class_segment;
+  Program -> Global_p;
+  Program -> Global_s;
+  Class_point -> point_Attr_x;
+  Class_point -> point_Attr_y;
+  Class_segment -> segment_Attr_a;
+  Class_segment -> segment_Attr_b;
+  
+  }

@@ -17,6 +17,10 @@ let () =
     let prog = Kawaparser.program Kawalexer.token lb in
     close_in c;
     Typechecker.typecheck_prog prog;
+
+    Gast.export_to_image prog "output";
+
+
     Interpreter.exec_prog prog;
     exit 0
   with

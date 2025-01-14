@@ -6,5 +6,6 @@
  (infer true))
 (executable
  (name kawai)
+  (libraries ocamlgraph)
  (promote (until-clean))
  (flags ()))
