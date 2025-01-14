@@ -39,7 +39,7 @@ main {
   p = new paire(1, 2);
   t = new triple(3, 4, 5);
   pt = new triple(1, 2, 3);
-  print(pt.x);
-  //print(pt.z);
-  // affiche 3, puis une erreur.
+  print((pt : (triple)).z);  // affiche 3
+  print((t : (paire)).y);    // affiche 4
+  // print((t : (paire)).y); // plante comme il faut (correct)
 }
