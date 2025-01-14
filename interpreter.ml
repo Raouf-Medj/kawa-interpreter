@@ -62,7 +62,7 @@ let rec exec_prog (p: program): unit =
        (match t, eval_expr e1 env this super with
        |_,VInt n -> VInt n 
        |_, VBool b -> VBool b
-       |TClass a, VObj obj -> if (class_incluse p.classes a obj.cls) then VObj obj 
+       |TClass a, VObj obj -> if (class_incluse p.classes obj.cls a ) then VObj obj 
                               else Typechecker.error ("Impossible typecast at line: "^string_of_int e.loc.pos_lnum^" in file: "^e.loc.pos_fname)
        |_,_ -> error("Trying to cast to a non-type (line: " ^ string_of_int e.loc.pos_lnum  ^" of: " ^ e.loc.pos_fname^")")
                               )
