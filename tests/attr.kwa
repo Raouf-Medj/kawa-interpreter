@@ -6,7 +6,7 @@ class point {
 
   method void constructor(int a, int b) {
     this.x = a;
-    this.y = b;
+    this.y = b
   }
 
   method int somme() {

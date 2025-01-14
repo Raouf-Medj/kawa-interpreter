@@ -53,7 +53,7 @@ let export_to_image prog output_file =
       (* Construire le label de la méthode avec son nom, paramètres et type de retour *)
       let params_types = 
         match meth.params with 
-        |[] -> ["unit"]
+        |[] -> ["void"]
         |_ -> List.map (fun (_, typ) -> typ_to_string typ) meth.params
       in
       let method_label = 

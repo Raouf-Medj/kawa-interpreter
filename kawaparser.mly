@@ -81,28 +81,25 @@ class_def:
   }
 ;
 
+semi_error : 
+| error {raise (failwith ("missing semi-colon in file: "^ (fst $loc).pos_fname ^" line: "^ string_of_int (fst $loc).pos_lnum))}
+| SEMI { () }
+
 var_decl:
-| VAR typpc separated_nonempty_list(COMMA, ident_init) SEMI { List.map (fun (ident, init) -> (ident, $2, init)) $3 }
-| VAR typpc separated_nonempty_list(COMMA, IDENT) error { failwith "Syntax error in variable declaration (missing semicolon)" }
+| VAR typpc separated_nonempty_list(COMMA, ident_init) semi_error { List.map (fun (ident, init) -> (ident, $2, init)) $3 }
 ;
 
 attr_decl:
-| ATTR typpc separated_nonempty_list(COMMA, ident_init) SEMI { List.map (fun (ident, init) -> (ident, $2, false, false, init)) $3 }
-| ATTR FINAL typpc separated_nonempty_list(COMMA, ident_init) SEMI { List.map (fun (ident, init) -> (ident, $3, true, false, init)) $4 }
-| ATTR STATIC typpc separated_nonempty_list(COMMA, ident_init) SEMI { List.map (fun (ident, init) -> (ident, $3, false, true, init)) $4 }
-| ATTR STATIC FINAL typpc separated_nonempty_list(COMMA, ident_init) SEMI 
-    | ATTR FINAL STATIC typpc separated_nonempty_list(COMMA, ident_init) SEMI 
+| ATTR typpc separated_nonempty_list(COMMA, ident_init) semi_error { List.map (fun (ident, init) -> (ident, $2, false, false, init)) $3 }
+| ATTR FINAL typpc separated_nonempty_list(COMMA, ident_init) semi_error { List.map (fun (ident, init) -> (ident, $3, true, false, init)) $4 }
+| ATTR STATIC typpc separated_nonempty_list(COMMA, ident_init) semi_error { List.map (fun (ident, init) -> (ident, $3, false, true, init)) $4 }
+| ATTR STATIC FINAL typpc separated_nonempty_list(COMMA, ident_init) semi_error 
+    | ATTR FINAL STATIC typpc separated_nonempty_list(COMMA, ident_init) semi_error 
     { List.map (fun (ident, init) -> 
         match init with
         | Some v -> (ident, $4, true, true, Some(v))
         | None -> failwith "Static final attributes must be initialized"
       ) $5 }
-| ATTR typpc IDENT error { failwith "Syntax error in attribute declaration (missing semicolon)" }
-| ATTR FINAL typpc IDENT error { failwith "Syntax error in attribute declaration (missing semicolon)" }
-| ATTR STATIC typpc IDENT error { failwith "Syntax error in attribute declaration (missing semicolon)" }
-| ATTR FINAL STATIC typpc IDENT error { failwith "Syntax error in attribute declaration (missing semicolon)" }
-| ATTR STATIC FINAL typpc IDENT error { failwith "Syntax error in attribute declaration (missing semicolon)" }
-;
 ;
 
 ident_init:
@@ -152,15 +149,14 @@ typpc:
 ;
 
 instr:
-| PRINT LPAR e=expr RPAR SEMI { Print(e) }
-| mem SET expr SEMI { Set($1, $3) }
+| PRINT LPAR e=expr RPAR semi_error { Print(e) }
+| mem SET expr semi_error { Set($1, $3) }
 | IF LPAR e=expr RPAR BEGIN b1=list(instr) END ELSE BEGIN b2=list(instr) END { If(e, b1, b2) }
 | IF LPAR e=expr RPAR BEGIN b1=list(instr) END  { UIf(e, b1) }
 | WHILE LPAR e=expr RPAR BEGIN b=list(instr) END { While(e, b) }
-| RETURN expr SEMI { Return($2) }
-| expr SEMI { Expr($1) }
+| RETURN expr semi_error { Return($2) }
+| expr semi_error { Expr($1) }
 
-| PRINT LPAR expr RPAR error | mem SET expr error | RETURN expr error| expr error { failwith "Syntax error after instruction (missing semicolon)" }
 ;
 
 expr:
