@@ -18,7 +18,7 @@ let () =
     close_in c;
     Typechecker.typecheck_prog prog;
 
-    Gast.export_to_image prog "output";
+    Gast.export_to_image prog "output.png";
 
 
     Interpreter.exec_prog prog;
