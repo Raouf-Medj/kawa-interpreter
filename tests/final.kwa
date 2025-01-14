@@ -1,11 +1,11 @@
 var test t;
 
 class test {
-    attribute static final int a = 5;
+    attribute static final int a = 5;   // faut initialiser sinon erreur (comme prevu - correct)
     attribute final int b;
 
     method void constructor(int i) {
-        // this.a = i;
+        // this.a = i;    // plante comme prevu (correct)
         this.b = i;
     }
 }

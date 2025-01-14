@@ -36,8 +36,9 @@ class triple extends paire {
 }
 
 main {
+  p = new paire(1, 2);
   t = new triple(3, 4, 5);
-  p = t :(paire);
+  // p = t : (paire);
   print(p.somme());
   print(t.somme());
   print(t.produit());

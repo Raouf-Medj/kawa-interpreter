@@ -1,37 +1,8 @@
 digraph G {
-  "Global: pt : paire " [label="Global: pt : paire ", ];
-  "Meth: triple_produit :  (unit -> int)" [label="Meth: triple_produit :  (unit -> int)",
-                                           ];
-  "Class: paire " [label="Class: paire ", ];
-  "Global: p : paire " [label="Global: p : paire ", ];
   "Program (Root)" [label="Program (Root)", ];
-  "Meth: triple_constructor :  (int -> int -> int -> void)" [label="Meth: triple_constructor :  (int -> int -> int -> void)",
-                                                             ];
-  "Meth: paire_somme :  (unit -> int)" [label="Meth: paire_somme :  (unit -> int)",
-                                        ];
-  "Attr: x : int " [label="Attr: x : int ", ];
-  "Global: t : triple " [label="Global: t : triple ", ];
-  "Class: triple " [label="Class: triple ", ];
-  "Meth: triple_somme :  (unit -> int)" [label="Meth: triple_somme :  (unit -> int)",
-                                         ];
-  "Attr: z : int " [label="Attr: z : int ", ];
-  "Meth: paire_constructor :  (int -> int -> void)" [label="Meth: paire_constructor :  (int -> int -> void)",
-                                                     ];
-  "Attr: y : int " [label="Attr: y : int ", ];
+  "Global: i : int " [label="Global: i : int ", ];
   
   
-  "Class: paire " -> "Attr: x : int ";
-  "Class: paire " -> "Attr: y : int ";
-  "Class: paire " -> "Meth: paire_constructor :  (int -> int -> void)";
-  "Class: paire " -> "Meth: paire_somme :  (unit -> int)";
-  "Program (Root)" -> "Class: paire ";
-  "Program (Root)" -> "Class: triple ";
-  "Program (Root)" -> "Global: p : paire ";
-  "Program (Root)" -> "Global: pt : paire ";
-  "Program (Root)" -> "Global: t : triple ";
-  "Class: triple " -> "Attr: z : int ";
-  "Class: triple " -> "Meth: triple_constructor :  (int -> int -> int -> void)";
-  "Class: triple " -> "Meth: triple_produit :  (unit -> int)";
-  "Class: triple " -> "Meth: triple_somme :  (unit -> int)";
+  "Program (Root)" -> "Global: i : int ";
   
   }
