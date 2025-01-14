@@ -83,6 +83,7 @@ class_def:
 
 var_decl:
 | VAR typpc separated_nonempty_list(COMMA, ident_init) SEMI { List.map (fun (ident, init) -> (ident, $2, init)) $3 }
+| VAR typpc separated_nonempty_list(COMMA, IDENT) error { failwith "Syntax error in variable declaration (missing semicolon)" }
 ;
 
 attr_decl:
@@ -96,6 +97,12 @@ attr_decl:
         | Some v -> (ident, $4, true, true, Some(v))
         | None -> failwith "Static final attributes must be initialized"
       ) $5 }
+| ATTR typpc IDENT error { failwith "Syntax error in attribute declaration (missing semicolon)" }
+| ATTR FINAL typpc IDENT error { failwith "Syntax error in attribute declaration (missing semicolon)" }
+| ATTR STATIC typpc IDENT error { failwith "Syntax error in attribute declaration (missing semicolon)" }
+| ATTR FINAL STATIC typpc IDENT error { failwith "Syntax error in attribute declaration (missing semicolon)" }
+| ATTR STATIC FINAL typpc IDENT error { failwith "Syntax error in attribute declaration (missing semicolon)" }
+;
 ;
 
 ident_init:
@@ -152,6 +159,8 @@ instr:
 | WHILE LPAR e=expr RPAR BEGIN b=list(instr) END { While(e, b) }
 | RETURN expr SEMI { Return($2) }
 | expr SEMI { Expr($1) }
+
+| PRINT LPAR expr RPAR error | mem SET expr error | RETURN expr error| expr error { failwith "Syntax error after instruction (missing semicolon)" }
 ;
 
 expr:
