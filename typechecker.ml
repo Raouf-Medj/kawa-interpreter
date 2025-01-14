@@ -6,6 +6,48 @@ let type_error ty_actual ty_expected =
   error (Printf.sprintf "expected %s, got %s"
            (typ_to_string ty_expected) (typ_to_string ty_actual))
 
+let levenshtein_distance s1 s2 =
+  let len1 = String.length s1 in
+  let len2 = String.length s2 in
+  let dp = Array.make_matrix (len1 + 1) (len2 + 1) 0 in
+
+  (* Initialisation des bords *)
+  for i = 0 to len1 do
+    dp.(i).(0) <- i
+  done;
+  for j = 0 to len2 do
+    dp.(0).(j) <- j
+  done;
+
+  (* Calcul de la distance *)
+  for i = 1 to len1 do
+    for j = 1 to len2 do
+      let cost = if s1.[i - 1] = s2.[j - 1] then 0 else 1 in
+      dp.(i).(j) <- min (min 
+                          (dp.(i - 1).(j) + 1)  (* Suppression *)
+                          (dp.(i).(j - 1) + 1)) (* Insertion *)
+                          (dp.(i - 1).(j - 1) + cost); (* Substitution *)
+    done;
+  done;
+
+  dp.(len1).(len2)
+
+(* Fonction principale pour trouver le mot le plus proche *)
+let closest_match target identifiers =
+  match identifiers with
+  | [] -> " "
+  | _ ->
+    let closest =
+      List.fold_left
+        (fun (best_name, best_distance) current ->
+           let distance = levenshtein_distance target current in
+           if distance < best_distance then (current, distance) else (best_name, best_distance))
+        ("", max_int) identifiers
+    in
+    match closest with
+    | (best_name, _) when best_name <> "" -> best_name
+    | _ -> " "
+
 module Env = Map.Make(String)
 type tenv = typ Env.t
 
@@ -16,11 +58,15 @@ let typecheck_prog p =
 
   let rec find_class classes cname =
     try List.find (fun c -> c.class_name = cname) classes
-    with Not_found -> error ("Class not found: " ^ cname)
+    with Not_found -> error ("Class not found: " ^ cname ^ 
+                            ", did you mean: " ^ 
+                            (closest_match cname (List.map (fun c -> c.class_name) classes)) ^ "?" )
 
-  and find_method cls mname =
+ and find_method cls mname =
     try List.find (fun m -> m.method_name = mname) cls.methods
-    with Not_found -> error ("Method not found: " ^ mname)
+    with Not_found -> error ("Method not found: " ^ mname ^
+                            ", did you mean: " ^ 
+                            (closest_match mname (List.map (fun c -> c.method_name) cls.methods)) ^ "?" )
 
   and check_eq_type expected actual =
     if expected <> actual then type_error actual expected
@@ -120,21 +166,37 @@ let typecheck_prog p =
           | Structeg | Structineg ->
                                     if typed_e1.annot <> typed_e2.annot then type_error typed_e2.annot typed_e1.annot;
                                     { annot = TBool; expr = Binop (u, typed_e1, typed_e2) ; loc = e.loc})
-    | Get (Var x) -> (try {annot = (Env.find x tenv); expr =e.expr; loc=e.loc } with Not_found -> error ("Undeclared variable: " ^ x))
+    | Get (Var x) -> (try {annot = (Env.find x tenv); expr =e.expr; loc=e.loc } 
+                      with Not_found -> let suggestions = 
+                                         closest_match x (List.map fst (Env.bindings tenv)) 
+                                       in
+                                       error ("Undeclared variable: " ^ x ^ 
+                                              ", did you mean: " ^ suggestions ^ "?"))
     | Get (Field (e, field)) ->
       let typed_e = type_expr e tenv in 
       (match  typed_e.annot with
       | TClass cname ->
           let cls = find_class p.classes cname in
-          {annot = find_field_type cls field; expr =e.expr; loc=e.loc}
+          (try {annot = find_field_type cls field; expr =e.expr; loc=e.loc}
+          with Not_found ->
+                  let suggestions = 
+                    closest_match field 
+                    (List.map fst cls.attributes)
+                  in
+                  error ("Field not found: " ^ field ^ 
+                         ", did you mean: " ^ suggestions ^ "?"))
       | ty -> type_error ty (TClass "object"))
     | Get (ArrayAccess(name, indices)) -> (
       try
         let arr_type = Env.find name tenv in
         try {annot = reduce_dim arr_type indices; expr = e.expr; loc = e.loc}
         with Error msg -> error msg
-      with Not_found ->
-        error ("Undeclared variable: "))
+      with Not_found -> 
+             let suggestions = 
+               closest_match name (List.map fst (Env.bindings tenv)) 
+             in
+             error ("Undeclared variable: " ^ name ^ 
+                    ", did you mean: " ^ suggestions ^ "?"))
     | This -> 
       (try {annot = Env.find "this" tenv; expr =e.expr; loc = e.loc} with Not_found -> error ("Unbound 'this' in the current context at line: " ^ string_of_int e.loc.pos_lnum))
     | Super -> 
