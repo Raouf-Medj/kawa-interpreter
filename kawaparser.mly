@@ -14,8 +14,6 @@
     ) false lst
 
   let flatten lst = List.fold_left (fun acc l -> acc @ l) [] lst
-
-  let rec tarray_maker d t= if(d=1) then TArray t else TArray (tarray_maker (d-1) t)  
 %}
 
 
