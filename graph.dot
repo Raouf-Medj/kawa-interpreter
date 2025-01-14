@@ -1,37 +1,20 @@
 digraph G {
-  "Global: pt : paire " [label="Global: pt : paire ", ];
-  "Meth: triple_somme :  (void -> int)" [label="Meth: triple_somme :  (void -> int)",
-                                         ];
-  "Class: paire " [label="Class: paire ", ];
-  "Global: p : paire " [label="Global: p : paire ", ];
-  "Program (Root)" [label="Program (Root)", ];
-  "Meth: triple_constructor :  (int -> int -> int -> void)" [label="Meth: triple_constructor :  (int -> int -> int -> void)",
-                                                             ];
-  "Attr: x : int " [label="Attr: x : int ", ];
-  "Global: t : triple " [label="Global: t : triple ", ];
-  "Class: triple " [label="Class: triple ", ];
-  "Meth: paire_somme :  (void -> int)" [label="Meth: paire_somme :  (void -> int)",
-                                        ];
-  "Attr: z : int " [label="Attr: z : int ", ];
-  "Meth: triple_produit :  (void -> int)" [label="Meth: triple_produit :  (void -> int)",
-                                           ];
-  "Meth: paire_constructor :  (int -> int -> void)" [label="Meth: paire_constructor :  (int -> int -> void)",
+  "Meth: point_constructor :  (int -> int -> void)" [label="Meth: point_constructor :  (int -> int -> void)",
                                                      ];
+  "Global: p : point " [label="Global: p : point ", ];
+  "Class: point " [label="Class: point ", ];
+  "Program (Root)" [label="Program (Root)", ];
+  "Attr: x : int " [label="Attr: x : int ", ];
+  "Meth: point_somme :  (void -> int)" [label="Meth: point_somme :  (void -> int)",
+                                        ];
   "Attr: y : int " [label="Attr: y : int ", ];
   
   
-  "Class: paire " -> "Attr: x : int ";
-  "Class: paire " -> "Attr: y : int ";
-  "Class: paire " -> "Meth: paire_constructor :  (int -> int -> void)";
-  "Class: paire " -> "Meth: paire_somme :  (void -> int)";
-  "Program (Root)" -> "Class: paire ";
-  "Program (Root)" -> "Class: triple ";
-  "Program (Root)" -> "Global: p : paire ";
-  "Program (Root)" -> "Global: pt : paire ";
-  "Program (Root)" -> "Global: t : triple ";
-  "Class: triple " -> "Attr: z : int ";
-  "Class: triple " -> "Meth: triple_constructor :  (int -> int -> int -> void)";
-  "Class: triple " -> "Meth: triple_produit :  (void -> int)";
-  "Class: triple " -> "Meth: triple_somme :  (void -> int)";
+  "Class: point " -> "Attr: x : int ";
+  "Class: point " -> "Attr: y : int ";
+  "Class: point " -> "Meth: point_constructor :  (int -> int -> void)";
+  "Class: point " -> "Meth: point_somme :  (void -> int)";
+  "Program (Root)" -> "Class: point ";
+  "Program (Root)" -> "Global: p : point ";
   
   }

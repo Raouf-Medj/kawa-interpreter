@@ -82,7 +82,7 @@ class_def:
 ;
 
 semi_error : 
-| error {raise (failwith ("missing semi-colon in file: "^ (fst $loc).pos_fname ^" line: "^ string_of_int (fst $loc).pos_lnum))}
+| error {(failwith ("missing semi-colon in file: "^ (fst $loc).pos_fname ^" line: "^ string_of_int (fst $loc).pos_lnum))}
 | SEMI { () }
 
 var_decl:
@@ -112,7 +112,7 @@ param_decl:
 ;
 
 method_def:
-| METHOD tp=typpc id=IDENT LPAR param_lst=separated_list(COMMA, param_decl) RPAR BEGIN locs=list(var_decl) sequence=list(instr) END { {
+| METHOD tp=typpc id=IDENT LPAR param_lst=separated_list(COMMA, param_decl) rpar_error BEGIN locs=list(var_decl) sequence=list(instr) END { {
     method_name = id;
     code = sequence;
     params = param_lst;
@@ -148,15 +148,18 @@ typpc:
 | LBRACKET RBRACKET { 0 }
 ;
 
+rpar_error:
+|RPAR   {}
+|error  {(failwith ("Unclosed parenthesis in: "^ (fst $loc).pos_fname ^" at line: "^ string_of_int (fst $loc).pos_lnum)) }
+
 instr:
-| PRINT LPAR e=expr RPAR semi_error { Print(e) }
+| PRINT LPAR e=expr rpar_error semi_error { Print(e) }
 | mem SET expr semi_error { Set($1, $3) }
-| IF LPAR e=expr RPAR BEGIN b1=list(instr) END ELSE BEGIN b2=list(instr) END { If(e, b1, b2) }
-| IF LPAR e=expr RPAR BEGIN b1=list(instr) END  { UIf(e, b1) }
-| WHILE LPAR e=expr RPAR BEGIN b=list(instr) END { While(e, b) }
+| IF LPAR e=expr rpar_error BEGIN b1=list(instr) END ELSE BEGIN b2=list(instr) END { If(e, b1, b2) }
+| IF LPAR e=expr rpar_error BEGIN b1=list(instr) END  { UIf(e, b1) }
+| WHILE LPAR e=expr rpar_error BEGIN b=list(instr) END { While(e, b) }
 | RETURN expr semi_error { Return($2) }
 | expr semi_error { Expr($1) }
-
 ;
 
 expr:
@@ -176,23 +179,23 @@ expr:
 | expr bop expr { { annot = TBool; expr = Binop($2, $1, $3); loc = fst $loc } }
 | SUB expr %prec NEG { { annot = TInt; expr = Unop(Opp, $2); loc = fst $loc } }
 | NOT expr { { annot = TBool; expr = Unop(Not, $2); loc = fst $loc } }
-| expr COLON LPAR typp RPAR   {{annot = TVoid ; expr = Unop(Cast($4), $1) ; loc = fst $loc}}
-| LPAR expr RPAR { $2 } 
+| expr COLON LPAR typp rpar_error   {{annot = TVoid ; expr = Unop(Cast($4), $1) ; loc = fst $loc}}
+| LPAR expr rpar_error { $2 } 
 | NEW IDENT { { annot = TClass($2); expr = New($2); loc = fst $loc } }
-| NEW IDENT LPAR separated_list(COMMA, expr) RPAR { 
+| NEW IDENT LPAR separated_list(COMMA, expr) rpar_error { 
     { 
       annot = TClass($2); 
       expr = NewCstr($2, $4);
       loc = fst $loc
     } 
   }
-| expr DOT IDENT LPAR separated_list(COMMA, expr) RPAR 
+| expr DOT IDENT LPAR separated_list(COMMA, expr) rpar_error 
     { { annot = TVoid; expr = MethCall($1, $3, $5); loc = fst $loc } }
 | NEW typp nonempty_list(list_array) 
     { { annot = TArray($2); expr = EArrayCreate($2, $3); loc = fst $loc } }
 | expr INSTANCEOF IDENT 
     { { annot = TBool; expr = InstanceOf($1, $3); loc = fst $loc } }
-|expr INSTANCEOF LPAR IDENT RPAR { { annot = TBool; expr = InstanceOf($1, $4); loc = fst $loc } }
+|expr INSTANCEOF LPAR IDENT rpar_error { { annot = TBool; expr = InstanceOf($1, $4); loc = fst $loc } }
 ;
 
 %inline bop:
