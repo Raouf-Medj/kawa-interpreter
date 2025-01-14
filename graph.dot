@@ -1,22 +1,16 @@
 digraph G {
-  Program [label="Program", ];
-  Global_p [label="Global_p", ];
-  Class_point [label="Class_point", ];
-  point_Attr_x [label="point_Attr_x", ];
-  Class_segment [label="Class_segment", ];
-  Global_s [label="Global_s", ];
-  segment_Attr_b [label="segment_Attr_b", ];
-  point_Attr_y [label="point_Attr_y", ];
-  segment_Attr_a [label="segment_Attr_a", ];
+  "Class: point (Class)" [label="Class: point (Class)", ];
+  "Attr: y : int (Attribute)" [label="Attr: y : int (Attribute)", ];
+  "Global: p : point (Variable)" [label="Global: p : point (Variable)", ];
+  "Program (Root)" [label="Program (Root)", ];
+  "Attr: x : int (Attribute)" [label="Attr: x : int (Attribute)", ];
+  "Meth: constructor (Method)" [label="Meth: constructor (Method)", ];
   
   
-  Program -> Class_point;
-  Program -> Class_segment;
-  Program -> Global_p;
-  Program -> Global_s;
-  Class_point -> point_Attr_x;
-  Class_point -> point_Attr_y;
-  Class_segment -> segment_Attr_a;
-  Class_segment -> segment_Attr_b;
+  "Class: point (Class)" -> "Attr: x : int (Attribute)";
+  "Class: point (Class)" -> "Attr: y : int (Attribute)";
+  "Class: point (Class)" -> "Meth: constructor (Method)";
+  "Program (Root)" -> "Class: point (Class)";
+  "Program (Root)" -> "Global: p : point (Variable)";
   
   }
