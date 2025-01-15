@@ -11,5 +11,5 @@ main {
     a = a*a;
     n = n/2;
   }
-  print(acc);
+  print(acc);   // 512
 }

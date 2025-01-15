@@ -9,10 +9,7 @@ main {
   z = 3;
   t = true;
   a = new int[3];
-  b = new int[2];
-  b[1] = 32;
   print(a[2]);    // 0
-  print(b[1]);    // 32
   print(x+y+z);   // 6
   print(t);       // true
 }

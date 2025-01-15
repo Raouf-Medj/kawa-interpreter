@@ -38,11 +38,12 @@ class triple extends paire {
 main {
   p = new paire(1, 2);
   t = new triple(3, 4, 5);
-  // p = t : (paire);
-  print(p.somme());
-  print(t.somme());
-  print(t.produit());
   pt = new triple(1, 2, 3);
-  print(pt.somme());
-  // affiche 3, puis 12, puis 60, puis 6.
+  print(p instanceof paire);
+  print(p instanceof triple);
+  print(t instanceof paire);
+  print(t instanceof triple);
+  print(pt instanceof paire);
+  print(pt instanceof triple);
+  // affiche true, false, puis true, true, puis true, true.
 }

@@ -1,0 +1,20 @@
+digraph G {
+  "Meth: point_constructor :  (int -> int -> void)" [label="Meth: point_constructor :  (int -> int -> void)",
+                                                     ];
+  "Global: p : point " [label="Global: p : point ", ];
+  "Class: point " [label="Class: point ", ];
+  "Program (Root)" [label="Program (Root)", ];
+  "Attr: x : int " [label="Attr: x : int ", ];
+  "Meth: point_somme :  (void -> int)" [label="Meth: point_somme :  (void -> int)",
+                                        ];
+  "Attr: y : int " [label="Attr: y : int ", ];
+  
+  
+  "Class: point " -> "Attr: x : int ";
+  "Class: point " -> "Attr: y : int ";
+  "Class: point " -> "Meth: point_constructor :  (int -> int -> void)";
+  "Class: point " -> "Meth: point_somme :  (void -> int)";
+  "Program (Root)" -> "Class: point ";
+  "Program (Root)" -> "Global: p : point ";
+  
+  }

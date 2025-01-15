@@ -1,5 +1,5 @@
-var point a;
-var point b;
+var point a ;
+var point b ;
 
 class point {
   attribute int x;
@@ -11,7 +11,8 @@ main {
   b = new point;
   a.x = 1;
   a.y = 2;
-  b.x = 3;
-  b.y = 4;
-  print(a.x + a.y + b.x + b.y);  // 10
+  b.x = 1;
+  b.y = 2;
+  print(a===b);   // true
+  print(a=/=b);   // false
 }

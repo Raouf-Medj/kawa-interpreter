@@ -21,28 +21,21 @@ class triple extends paire {
   attribute int z;
 
   method void constructor(int x, int y, int z) {
-    this.x = x;
-    this.y = y;
+    super.constructor(x, y);
     this.z = z;
   }
 
   method int somme() {
-    return this.x + this.y + this.z;
-  }
-
-  method int produit() {
-    return this.x * this.y * this.z;
+    return super.somme() + this.z;
   }
 }
 
 main {
   p = new paire(1, 2);
   t = new triple(3, 4, 5);
-  // p = t : (paire);
   print(p.somme());
   print(t.somme());
-  print(t.produit());
   pt = new triple(1, 2, 3);
   print(pt.somme());
-  // affiche 3, puis 12, puis 60, puis 6.
+  // affiche 3, puis 12, puis 6.
 }

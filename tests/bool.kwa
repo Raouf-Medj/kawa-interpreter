@@ -1,3 +1,4 @@
 main {
-    print((6 >= 2) && false || (5 < 2));
+    print((6 >= 2) && false || (5 < 2));        // false
+    print(!(6 == 2) && false || (5 != 2));      // true
 }

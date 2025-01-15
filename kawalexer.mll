@@ -26,6 +26,10 @@
         "bool",       TBOOL;
         "void",       TVOID;
         "extends",    EXTENDS;
+        "final",      FINAL;
+        "static",     STATIC;
+        "instanceof", INSTANCEOF;
+        "super",      SUPER;
       ] ;
     fun s ->
       try  Hashtbl.find h s
@@ -34,7 +38,7 @@
 }
 
 let digit = ['0'-'9']
-let number = ['-']? digit+
+let number = digit+
 let alpha = ['a'-'z' 'A'-'Z']
 let ident = ['a'-'z' '_'] (alpha | '_' | digit)*
   
@@ -51,6 +55,7 @@ rule token = parse
   | ";"  { SEMI }
   | ","  { COMMA }
   | "."  { DOT }
+  | ":"  {COLON}
   | "="  { SET }
   | "("  { LPAR }
   | ")"  { RPAR }
@@ -70,7 +75,14 @@ rule token = parse
   | "/"  { DIV }
   | "-"  { SUB }
   | "*"  { MUL }
-  | _    { raise (Error ("unknown character : " ^ lexeme lexbuf)) }
+  | "===" {STRUCTEG}
+  | "=/=" {STRUCTINEG}
+  | "[" { LBRACKET }
+  | "]" { RBRACKET }
+  | _    { raise (Error (Printf.sprintf "Unknown character '%s' at line %d, column %d"
+                                      (lexeme lexbuf) 
+                                      lexbuf.lex_curr_p.pos_lnum 
+                                      (lexbuf.lex_curr_p.pos_cnum - lexbuf.lex_curr_p.pos_bol))) }  
   | eof  { EOF }
 
 and comment = parse
