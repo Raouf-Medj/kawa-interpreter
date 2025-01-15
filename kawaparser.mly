@@ -151,6 +151,7 @@ typpc:
 rpar_error:
 |RPAR   {}
 |error  {(failwith ("Unclosed parenthesis in: "^ (fst $loc).pos_fname ^" at line: "^ string_of_int (fst $loc).pos_lnum)) }
+;
 
 instr:
 | PRINT LPAR e=expr rpar_error semi_error { Print(e) }
