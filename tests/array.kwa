@@ -1,0 +1,9 @@
+var bool[] a;
+var int [][] b = new int[5][3]; 
+
+main {
+  a = new bool[3];
+  b[1][2] = 32;
+  print(a[2]);    // false
+  print(b[1][2]);    // 32
+}
